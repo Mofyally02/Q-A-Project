@@ -1,0 +1,44 @@
+{
+  "name": "ai-qa-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for AI-Powered Q&A System - AL-Tech Academy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "nuxt build",
+    "dev": "nuxt dev",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "type-check": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@nuxt/icon": "^1.7.0",
+    "@nuxtjs/tailwindcss": "^6.8.4",
+    "@pinia/nuxt": "^0.5.1",
+    "@vueuse/core": "^10.5.0",
+    "@vueuse/nuxt": "^10.5.0",
+    "axios": "^1.6.0",
+    "chart.js": "^4.4.0",
+    "chartjs-adapter-date-fns": "^3.0.0",
+    "date-fns": "^2.30.0",
+    "nuxt": "^3.8.0",
+    "pinia": "^2.1.7",
+    "vue": "^3.3.8",
+    "vue-chartjs": "^5.3.0",
+    "vue-toastification": "^2.0.0-rc.5",
+    "vue3-emoji-picker": "^1.1.8",
+    "websocket": "^1.0.34"
+  },
+  "devDependencies": {
+    "@nuxt/devtools": "latest",
+    "@nuxt/eslint-config": "^0.2.0",
+    "@types/node": "^20.8.0",
+    "@types/websocket": "^1.0.4",
+    "eslint": "^8.52.0",
+    "typescript": "^5.2.0",
+    "vue-tsc": "^1.8.27"
+  }
+}
