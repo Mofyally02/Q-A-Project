@@ -8,6 +8,7 @@ load_dotenv()
 class Settings(BaseSettings):
     # Database Configuration
     database_url: str = os.getenv("DATABASE_URL", "postgresql://username:password@localhost:5432/qa_system")
+    auth_database_url: str = os.getenv("AUTH_DATABASE_URL", "postgresql://qa_user:qa_password@localhost:5432/qa_auth")
     redis_url: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     
     # RabbitMQ Configuration
@@ -51,7 +52,10 @@ class Settings(BaseSettings):
     debug: bool = os.getenv("DEBUG", "True").lower() == "true"
     host: str = os.getenv("HOST", "0.0.0.0")
     port: int = int(os.getenv("PORT", "8000"))
-    cors_origins: List[str] = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8080").split(",")
+    cors_origins: List[str] = os.getenv(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,http://localhost:5173,http://localhost:8080"
+    ).split(",")
     
     # AI Processing Settings
     min_confidence_score: float = 0.7

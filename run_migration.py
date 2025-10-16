@@ -5,6 +5,8 @@ Database migration runner for AL-Tech Academy Q&A System
 import asyncio
 import asyncpg
 import os
+import hashlib
+import secrets
 from dotenv import load_dotenv
 from app.config import settings
 
@@ -13,11 +15,26 @@ load_dotenv()
 async def run_migration():
     """Run database migration to create users table"""
     try:
-        # Connect to database
-        conn = await asyncpg.connect(settings.database_url)
+        # Connect to auth database
+        conn = await asyncpg.connect(settings.auth_database_url)
         
         print("Connected to PostgreSQL database")
         
+        # Ensure required extension and types exist before creating tables
+        # Needed for gen_random_uuid()
+        await conn.execute("""
+            CREATE EXTENSION IF NOT EXISTS pgcrypto;
+        """)
+
+        # Create userrole enum if it doesn't exist
+        await conn.execute("""
+            DO $$ BEGIN
+                CREATE TYPE userrole AS ENUM ('client', 'expert', 'admin');
+            EXCEPTION
+                WHEN duplicate_object THEN null;
+            END $$;
+        """)
+
         # Check if users table already exists
         table_exists = await conn.fetchval("""
             SELECT EXISTS (
@@ -49,14 +66,27 @@ async def run_migration():
                 profile_data JSONB
             )
         """)
-        
-        # Create userrole enum if it doesn't exist
+
+        # Role-specific tables
+        print("Creating role-specific tables...")
         await conn.execute("""
-            DO $$ BEGIN
-                CREATE TYPE userrole AS ENUM ('client', 'expert', 'admin');
-            EXCEPTION
-                WHEN duplicate_object THEN null;
-            END $$;
+            CREATE TABLE IF NOT EXISTS clients (
+                user_id UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS experts (
+                user_id UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                approved BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS admins (
+                user_id UUID PRIMARY KEY REFERENCES users(user_id) ON DELETE CASCADE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
         """)
         
         # Create indexes
@@ -66,21 +96,39 @@ async def run_migration():
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_is_active ON users (is_active)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_users_created_at ON users (created_at)")
         
-        # Insert default users
-        print("Inserting default users...")
-        await conn.execute("""
-            INSERT INTO users (email, password_hash, first_name, last_name, role, is_active) VALUES
-            ('client@demo.com', 'demo123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Demo', 'Client', 'client', true),
-            ('expert@demo.com', 'demo123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Demo', 'Expert', 'expert', true),
-            ('admin@demo.com', 'demo123:5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8', 'Demo', 'Admin', 'admin', true)
-            ON CONFLICT (email) DO NOTHING
-        """)
+        # Remove any legacy demo users if present
+        await conn.execute(
+            "DELETE FROM users WHERE email = ANY($1)",
+            [
+                'client@demo.com',
+                'expert@demo.com',
+                'admin@demo.com'
+            ]
+        )
+
+        # Seed requested admin account if missing
+        admin_email = "allansaiti02@gmail.com"
+        admin_password = "MofyAlly.21"
+        existing_admin = await conn.fetchval("SELECT user_id FROM users WHERE email = $1", admin_email)
+        if not existing_admin:
+            # Hash password with same scheme as SecurityUtils
+            salt = secrets.token_hex(16)
+            password_hash = hashlib.sha256((admin_password + salt).encode()).hexdigest()
+            full_hash = f"{salt}:{password_hash}"
+            user_id = await conn.fetchval(
+                """
+                INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
+                VALUES ($1, $2, $3, $4, 'admin', TRUE)
+                RETURNING user_id
+                """,
+                admin_email,
+                full_hash,
+                "Admin",
+                "User"
+            )
+            await conn.execute("INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", user_id)
         
         print("Migration completed successfully!")
-        print("\nDefault users created:")
-        print("- client@demo.com (password: demo123)")
-        print("- expert@demo.com (password: demo123)")
-        print("- admin@demo.com (password: demo123)")
         
     except Exception as e:
         print(f"Migration failed: {e}")

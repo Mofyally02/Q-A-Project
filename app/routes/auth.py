@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 import asyncpg
 from typing import Dict, Any
-from app.database import get_db
+from app.database import get_auth_db
 from app.services.auth_service import auth_service
 from app.models import (
     LoginRequest, LoginResponse, RegisterRequest, UserResponse, 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 @router.post("/login", response_model=LoginResponse)
-async def login(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_db)):
+async def login(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Login endpoint for all user types"""
     try:
         result = await auth_service.login_user(login_data, db)
@@ -28,7 +28,7 @@ async def login(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_d
         )
 
 @router.post("/register", response_model=LoginResponse)
-async def register(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_db)):
+async def register(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Register new user"""
     try:
         result = await auth_service.register_user(user_data, db)
@@ -55,7 +55,7 @@ async def logout():
 
 # Role-specific login endpoints
 @router.post("/login/client", response_model=LoginResponse)
-async def login_client(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_db)):
+async def login_client(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Login endpoint specifically for clients"""
     try:
         result = await auth_service.login_user(login_data, db)
@@ -73,7 +73,7 @@ async def login_client(login_data: LoginRequest, db: asyncpg.Connection = Depend
         )
 
 @router.post("/login/expert", response_model=LoginResponse)
-async def login_expert(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_db)):
+async def login_expert(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Login endpoint specifically for experts"""
     try:
         result = await auth_service.login_user(login_data, db)
@@ -91,7 +91,7 @@ async def login_expert(login_data: LoginRequest, db: asyncpg.Connection = Depend
         )
 
 @router.post("/login/admin", response_model=LoginResponse)
-async def login_admin(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_db)):
+async def login_admin(login_data: LoginRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Login endpoint specifically for admins"""
     try:
         result = await auth_service.login_user(login_data, db)
@@ -110,7 +110,7 @@ async def login_admin(login_data: LoginRequest, db: asyncpg.Connection = Depends
 
 # Role-specific registration endpoints
 @router.post("/register/client", response_model=LoginResponse)
-async def register_client(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_db)):
+async def register_client(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Register new client"""
     if user_data.role != UserRole.CLIENT:
         raise HTTPException(
@@ -129,7 +129,7 @@ async def register_client(user_data: RegisterRequest, db: asyncpg.Connection = D
         )
 
 @router.post("/register/expert", response_model=LoginResponse)
-async def register_expert(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_db)):
+async def register_expert(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_auth_db)):
     """Register new expert (requires admin approval)"""
     if user_data.role != UserRole.EXPERT:
         raise HTTPException(
@@ -152,7 +152,7 @@ async def register_expert(user_data: RegisterRequest, db: asyncpg.Connection = D
 @router.post("/register/admin", response_model=LoginResponse)
 async def register_admin(
     user_data: RegisterRequest, 
-    db: asyncpg.Connection = Depends(get_db),
+    db: asyncpg.Connection = Depends(get_auth_db),
     current_user: UserResponse = Depends(auth_service.require_role([UserRole.ADMIN]))
 ):
     """Register new admin (requires existing admin privileges)"""

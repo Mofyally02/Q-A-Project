@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 class Database:
     def __init__(self):
         self.pool = None
+        self.auth_pool = None
         self.redis_client = None
     
     async def connect(self):
@@ -19,6 +20,13 @@ class Database:
                 settings.database_url,
                 min_size=5,
                 max_size=20,
+                command_timeout=60
+            )
+            # Auth database connection pool
+            self.auth_pool = await asyncpg.create_pool(
+                settings.auth_database_url,
+                min_size=2,
+                max_size=10,
                 command_timeout=60
             )
             
@@ -34,6 +42,8 @@ class Database:
         """Close database connections"""
         if self.pool:
             await self.pool.close()
+        if self.auth_pool:
+            await self.auth_pool.close()
         if self.redis_client:
             self.redis_client.close()
         logger.info("Database connections closed")
@@ -41,6 +51,11 @@ class Database:
     async def get_connection(self) -> AsyncGenerator[asyncpg.Connection, None]:
         """Get a database connection from the pool"""
         async with self.pool.acquire() as connection:
+            yield connection
+    
+    async def get_auth_connection(self) -> AsyncGenerator[asyncpg.Connection, None]:
+        """Get a database connection from the auth pool"""
+        async with self.auth_pool.acquire() as connection:
             yield connection
     
     def get_redis(self) -> redis.Redis:
@@ -53,6 +68,11 @@ db = Database()
 async def get_db() -> AsyncGenerator[asyncpg.Connection, None]:
     """Dependency for FastAPI to get database connection"""
     async for connection in db.get_connection():
+        yield connection
+
+async def get_auth_db() -> AsyncGenerator[asyncpg.Connection, None]:
+    """Dependency for FastAPI to get auth database connection"""
+    async for connection in db.get_auth_connection():
         yield connection
 
 def get_redis() -> redis.Redis:

@@ -26,6 +26,42 @@ export const useApi = () => {
     })
   }
 
+  const registerClient = async (userData: any) => {
+    return await api('/auth/register/client', {
+      method: 'POST',
+      body: { ...userData, role: 'client' }
+    })
+  }
+
+  const registerExpert = async (userData: any) => {
+    return await api('/auth/register/expert', {
+      method: 'POST',
+      body: { ...userData, role: 'expert' }
+    })
+  }
+
+  // Role-specific login endpoints
+  const loginClient = async (email: string, password: string) => {
+    return await api('/auth/login/client', {
+      method: 'POST',
+      body: { email, password }
+    })
+  }
+
+  const loginExpert = async (email: string, password: string) => {
+    return await api('/auth/login/expert', {
+      method: 'POST',
+      body: { email, password }
+    })
+  }
+
+  const loginAdmin = async (email: string, password: string) => {
+    return await api('/auth/login/admin', {
+      method: 'POST',
+      body: { email, password }
+    })
+  }
+
   // Questions
   const submitQuestion = async (questionData: {
     content: string
@@ -165,6 +201,11 @@ export const useApi = () => {
     // Authentication
     login,
     register,
+    registerClient,
+    registerExpert,
+    loginClient,
+    loginExpert,
+    loginAdmin,
     
     // Questions
     submitQuestion,

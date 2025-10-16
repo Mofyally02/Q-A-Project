@@ -1860,6 +1860,24 @@ const useApi = () => {
       body: userData
     });
   };
+  const loginClient = async (email, password) => {
+    return await api("/auth/login/client", {
+      method: "POST",
+      body: { email, password }
+    });
+  };
+  const loginExpert = async (email, password) => {
+    return await api("/auth/login/expert", {
+      method: "POST",
+      body: { email, password }
+    });
+  };
+  const loginAdmin = async (email, password) => {
+    return await api("/auth/login/admin", {
+      method: "POST",
+      body: { email, password }
+    });
+  };
   const submitQuestion = async (questionData) => {
     return await api("/questions/submit", {
       method: "POST",
@@ -1958,6 +1976,9 @@ const useApi = () => {
     // Authentication
     login,
     register,
+    loginClient,
+    loginExpert,
+    loginAdmin,
     // Questions
     submitQuestion,
     getQuestions,
@@ -2006,8 +2027,8 @@ const useAuthStore = /* @__PURE__ */ defineStore("auth", {
         const api = useApi();
         const response = await api.login(email, password);
         if (response.success) {
-          this.user = response.data.user;
-          this.token = response.data.token;
+          this.user = response.user;
+          this.token = response.access_token;
           if (false) ;
         } else {
           throw new Error(response.message || "Login failed");
@@ -2023,15 +2044,19 @@ const useAuthStore = /* @__PURE__ */ defineStore("auth", {
       this.isLoading = true;
       try {
         const api = useApi();
+        const nameParts = name.trim().split(" ");
+        const firstName = nameParts[0] || "";
+        const lastName = nameParts.slice(1).join(" ") || "";
         const response = await api.register({
           email,
           password,
-          name,
+          first_name: firstName,
+          last_name: lastName,
           role
         });
         if (response.success) {
-          this.user = response.data.user;
-          this.token = response.data.token;
+          this.user = response.user;
+          this.token = response.access_token;
           if (false) ;
         } else {
           throw new Error(response.message || "Registration failed");
@@ -2328,6 +2353,18 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
     const showExpertPanel = ref(false);
     const showLoginModal = ref(false);
     const showAttachmentOptions = ref(false);
+    const isSignupMode = ref(false);
+    const loginForm = ref({
+      email: "",
+      password: ""
+    });
+    const signupForm = ref({
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      role: ""
+    });
     const chatHistory = ref([]);
     const selectedChat = ref(null);
     const currentMessage = ref("");
@@ -2659,7 +2696,31 @@ const _sfc_main$2 = /* @__PURE__ */ defineComponent({
           name: "heroicons:academic-cap",
           class: "h-8 w-8 text-white"
         }, null, _parent));
-        _push(`</div><h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2><p class="text-gray-600">Choose your role to get started</p></div><div class="space-y-3"><button class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"> Student - Ask Questions </button><button class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"> Expert - Review Answers </button><button class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"> Admin - Monitor System </button></div><button class="mt-6 w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"> Maybe Later </button></div></div>`);
+        _push(`</div><h2 class="text-2xl font-bold text-gray-900 mb-2">${ssrInterpolate(unref(isSignupMode) ? "Create Account" : "Welcome Back")}</h2><p class="text-gray-600">${ssrInterpolate(unref(isSignupMode) ? "Join AL-Tech Academy today" : "Sign in to your account")}</p></div><div class="flex mb-6 bg-gray-100 rounded-lg p-1"><button class="${ssrRenderClass([
+          "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors",
+          !unref(isSignupMode) ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+        ])}"> Sign In </button><button class="${ssrRenderClass([
+          "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors",
+          unref(isSignupMode) ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+        ])}"> Sign Up </button></div>`);
+        if (!unref(isSignupMode)) {
+          _push(`<form class="space-y-4"><div><label for="login-email" class="block text-sm font-medium text-gray-700 mb-1"> Email Address </label><input id="login-email"${ssrRenderAttr("value", unref(loginForm).email)} type="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your email"></div><div><label for="login-password" class="block text-sm font-medium text-gray-700 mb-1"> Password </label><input id="login-password"${ssrRenderAttr("value", unref(loginForm).password)} type="password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your password"></div><button type="submit"${ssrIncludeBooleanAttr(unref(authStore).isLoading) ? " disabled" : ""} class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200">`);
+          if (unref(authStore).isLoading) {
+            _push(`<span class="flex items-center justify-center"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Signing In... </span>`);
+          } else {
+            _push(`<span>Sign In</span>`);
+          }
+          _push(`</button></form>`);
+        } else {
+          _push(`<form class="space-y-4"><div class="grid grid-cols-2 gap-4"><div><label for="signup-firstname" class="block text-sm font-medium text-gray-700 mb-1"> First Name </label><input id="signup-firstname"${ssrRenderAttr("value", unref(signupForm).firstName)} type="text" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="First name"></div><div><label for="signup-lastname" class="block text-sm font-medium text-gray-700 mb-1"> Last Name </label><input id="signup-lastname"${ssrRenderAttr("value", unref(signupForm).lastName)} type="text" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Last name"></div></div><div><label for="signup-email" class="block text-sm font-medium text-gray-700 mb-1"> Email Address </label><input id="signup-email"${ssrRenderAttr("value", unref(signupForm).email)} type="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Enter your email"></div><div><label for="signup-password" class="block text-sm font-medium text-gray-700 mb-1"> Password </label><input id="signup-password"${ssrRenderAttr("value", unref(signupForm).password)} type="password" required minlength="8" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Create a password (min 8 characters)"></div><div><label for="signup-role" class="block text-sm font-medium text-gray-700 mb-1"> Role </label><select id="signup-role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"><option value=""${ssrIncludeBooleanAttr(Array.isArray(unref(signupForm).role) ? ssrLooseContain(unref(signupForm).role, "") : ssrLooseEqual(unref(signupForm).role, "")) ? " selected" : ""}>Select your role</option><option value="client"${ssrIncludeBooleanAttr(Array.isArray(unref(signupForm).role) ? ssrLooseContain(unref(signupForm).role, "client") : ssrLooseEqual(unref(signupForm).role, "client")) ? " selected" : ""}>Student - Ask Questions</option><option value="expert"${ssrIncludeBooleanAttr(Array.isArray(unref(signupForm).role) ? ssrLooseContain(unref(signupForm).role, "expert") : ssrLooseEqual(unref(signupForm).role, "expert")) ? " selected" : ""}>Expert - Review Answers</option><option value="admin"${ssrIncludeBooleanAttr(Array.isArray(unref(signupForm).role) ? ssrLooseContain(unref(signupForm).role, "admin") : ssrLooseEqual(unref(signupForm).role, "admin")) ? " selected" : ""}>Admin - System Management</option></select></div><button type="submit"${ssrIncludeBooleanAttr(unref(authStore).isLoading) ? " disabled" : ""} class="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:from-green-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200">`);
+          if (unref(authStore).isLoading) {
+            _push(`<span class="flex items-center justify-center"><div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div> Creating Account... </span>`);
+          } else {
+            _push(`<span>Create Account</span>`);
+          }
+          _push(`</button></form>`);
+        }
+        _push(`<div class="mt-6 pt-6 border-t border-gray-200"><p class="text-center text-sm text-gray-500 mb-3">Or try with demo accounts</p><div class="grid grid-cols-3 gap-2"><button class="px-3 py-2 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"> Student </button><button class="px-3 py-2 text-xs bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors"> Expert </button><button class="px-3 py-2 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"> Admin </button></div></div><button class="mt-6 w-full text-sm text-gray-500 hover:text-gray-700 transition-colors"> Maybe Later </button></div></div>`);
       } else {
         _push(`<!---->`);
       }

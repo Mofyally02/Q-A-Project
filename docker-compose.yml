@@ -56,6 +56,7 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://qa_user:qa_password@postgres:5432/qa_system
+      - AUTH_DATABASE_URL=postgresql://qa_user:qa_password@postgres:5432/qa_auth
       - REDIS_URL=redis://redis:6379
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672

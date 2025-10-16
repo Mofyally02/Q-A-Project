@@ -47,6 +47,14 @@ class AuthService:
             """, user_data.email, password_hash, user_data.first_name, 
                 user_data.last_name, user_data.role.value, api_key)
             
+            # Insert into role-specific table
+            if user_data.role == UserRole.CLIENT:
+                await db.execute("INSERT INTO clients (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", user_id)
+            elif user_data.role == UserRole.EXPERT:
+                await db.execute("INSERT INTO experts (user_id, approved) VALUES ($1, FALSE) ON CONFLICT (user_id) DO NOTHING", user_id)
+            elif user_data.role == UserRole.ADMIN:
+                await db.execute("INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", user_id)
+
             # Fetch created user
             user = await db.fetchrow("""
                 SELECT user_id, email, first_name, last_name, role, is_active, created_at

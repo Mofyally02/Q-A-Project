@@ -39,8 +39,8 @@ export const useAuthStore = defineStore('auth', {
         const response = await api.login(email, password)
         
         if (response.success) {
-          this.user = response.data.user
-          this.token = response.data.token
+          this.user = response.user
+          this.token = response.access_token
           
           // Store in localStorage
           if (process.client) {
@@ -62,16 +62,22 @@ export const useAuthStore = defineStore('auth', {
       this.isLoading = true
       try {
         const api = useApi()
-        const response = await api.register({
-          email,
-          password,
-          name,
-          role
-        })
+        
+        // Split name into first and last name
+        const nameParts = name.trim().split(' ')
+        const firstName = nameParts[0] || ''
+        const lastName = nameParts.slice(1).join(' ') || ''
+        
+        const payload = { email, password, first_name: firstName, last_name: lastName }
+        const response = role === 'client'
+          ? await api.registerClient(payload)
+          : role === 'expert'
+            ? await api.registerExpert(payload)
+            : await api.register({ ...payload, role })
         
         if (response.success) {
-          this.user = response.data.user
-          this.token = response.data.token
+          this.user = response.user
+          this.token = response.access_token
           
           // Store in localStorage
           if (process.client) {

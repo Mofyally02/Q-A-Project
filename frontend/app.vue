@@ -316,36 +316,204 @@
       </div>
     </div>
 
-    <!-- Login Modal -->
+    <!-- Login/Signup Modal -->
     <div v-if="showLoginModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div class="bg-white rounded-2xl p-8 w-full max-w-md mx-4">
         <div class="text-center mb-6">
           <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <Icon name="heroicons:academic-cap" class="h-8 w-8 text-white" />
           </div>
-          <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome Back</h2>
-          <p class="text-gray-600">Choose your role to get started</p>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">
+            {{ isSignupMode ? 'Create Account' : 'Welcome Back' }}
+          </h2>
+          <p class="text-gray-600">
+            {{ isSignupMode ? 'Join AL-Tech Academy today' : 'Sign in to your account' }}
+          </p>
         </div>
-        
-        <div class="space-y-3">
+
+        <!-- Toggle between Login and Signup -->
+        <div class="flex mb-6 bg-gray-100 rounded-lg p-1">
           <button
-            @click="loginWithDemo('client')"
-            class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200"
+            @click="isSignupMode = false"
+            :class="[
+              'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
+              !isSignupMode 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
           >
-            Student - Ask Questions
+            Sign In
           </button>
           <button
-            @click="loginWithDemo('expert')"
-            class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            @click="isSignupMode = true"
+            :class="[
+              'flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors',
+              isSignupMode 
+                ? 'bg-white text-gray-900 shadow-sm' 
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
           >
-            Expert - Review Answers
+            Sign Up
           </button>
+        </div>
+
+        <!-- Login Form -->
+        <form v-if="!isSignupMode" @submit.prevent="handleLogin" class="space-y-4">
+          <div>
+            <label for="login-email" class="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              id="login-email"
+              v-model="loginForm.email"
+              type="email"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your email"
+            >
+          </div>
+          
+          <div>
+            <label for="login-password" class="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="login-password"
+              v-model="loginForm.password"
+              type="password"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your password"
+            >
+          </div>
+
           <button
-            @click="loginWithDemo('admin')"
-            class="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors"
+            type="submit"
+            :disabled="authStore.isLoading"
+            class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
           >
-            Admin - Monitor System
+            <span v-if="authStore.isLoading" class="flex items-center justify-center">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Signing In...
+            </span>
+            <span v-else>Sign In</span>
           </button>
+        </form>
+
+        <!-- Signup Form -->
+        <form v-else @submit.prevent="handleSignup" class="space-y-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="signup-firstname" class="block text-sm font-medium text-gray-700 mb-1">
+                First Name
+              </label>
+              <input
+                id="signup-firstname"
+                v-model="signupForm.firstName"
+                type="text"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="First name"
+              >
+            </div>
+            
+            <div>
+              <label for="signup-lastname" class="block text-sm font-medium text-gray-700 mb-1">
+                Last Name
+              </label>
+              <input
+                id="signup-lastname"
+                v-model="signupForm.lastName"
+                type="text"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Last name"
+              >
+            </div>
+          </div>
+
+          <div>
+            <label for="signup-email" class="block text-sm font-medium text-gray-700 mb-1">
+              Email Address
+            </label>
+            <input
+              id="signup-email"
+              v-model="signupForm.email"
+              type="email"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Enter your email"
+            >
+          </div>
+          
+          <div>
+            <label for="signup-password" class="block text-sm font-medium text-gray-700 mb-1">
+              Password
+            </label>
+            <input
+              id="signup-password"
+              v-model="signupForm.password"
+              type="password"
+              required
+              minlength="8"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Create a password (min 8 characters)"
+            >
+          </div>
+
+          <div>
+            <label for="signup-role" class="block text-sm font-medium text-gray-700 mb-1">
+              Role
+            </label>
+            <select
+              id="signup-role"
+              v-model="signupForm.role"
+              required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select your role</option>
+              <option value="client">Student - Ask Questions</option>
+              <option value="expert">Expert - Review Answers</option>
+              <option value="admin">Admin - System Management</option>
+            </select>
+          </div>
+
+          <button
+            type="submit"
+            :disabled="authStore.isLoading"
+            class="w-full bg-gradient-to-r from-green-500 to-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:from-green-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+          >
+            <span v-if="authStore.isLoading" class="flex items-center justify-center">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              Creating Account...
+            </span>
+            <span v-else>Create Account</span>
+          </button>
+        </form>
+
+        <!-- Demo Login Section -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <p class="text-center text-sm text-gray-500 mb-3">Or try with demo accounts</p>
+          <div class="grid grid-cols-3 gap-2">
+            <button
+              @click="loginWithDemo('client')"
+              class="px-3 py-2 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+            >
+              Student
+            </button>
+            <button
+              @click="loginWithDemo('expert')"
+              class="px-3 py-2 text-xs bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors"
+            >
+              Expert
+            </button>
+            <button
+              @click="loginWithDemo('admin')"
+              class="px-3 py-2 text-xs bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors"
+            >
+              Admin
+            </button>
+          </div>
         </div>
         
         <button
@@ -387,6 +555,21 @@ const showSidebar = ref(true)
 const showExpertPanel = ref(false)
 const showLoginModal = ref(false)
 const showAttachmentOptions = ref(false)
+const isSignupMode = ref(false)
+
+// Form data
+const loginForm = ref({
+  email: '',
+  password: ''
+})
+
+const signupForm = ref({
+  firstName: '',
+  lastName: '',
+  email: '',
+  password: '',
+  role: ''
+})
 
 // Chat State
 const chatHistory = ref<any[]>([])
@@ -687,6 +870,51 @@ const handleLogout = async () => {
   selectedChat.value = null
 }
 
+const handleLogin = async () => {
+  try {
+    await authStore.login(loginForm.value.email, loginForm.value.password)
+    showLoginModal.value = false
+    toast.success('Login successful!')
+    
+    // Reset form
+    loginForm.value = { email: '', password: '' }
+    
+    // Load user's chat history
+    await loadUserChatHistory()
+  } catch (error) {
+    console.error('Login error:', error)
+    toast.error('Login failed. Please check your credentials.')
+  }
+}
+
+const handleSignup = async () => {
+  try {
+    await authStore.register(
+      signupForm.value.email,
+      signupForm.value.password,
+      `${signupForm.value.firstName} ${signupForm.value.lastName}`,
+      signupForm.value.role as any
+    )
+    showLoginModal.value = false
+    toast.success('Account created successfully!')
+    
+    // Reset form
+    signupForm.value = {
+      firstName: '',
+      lastName: '',
+      email: '',
+      password: '',
+      role: ''
+    }
+    
+    // Load user's chat history
+    await loadUserChatHistory()
+  } catch (error) {
+    console.error('Signup error:', error)
+    toast.error('Signup failed. Please try again.')
+  }
+}
+
 const loginWithDemo = async (role: string) => {
   try {
     const credentials = {
@@ -737,6 +965,30 @@ const loginWithDemo = async (role: string) => {
     }
   } catch (error) {
     toast.error('Demo login failed')
+  }
+}
+
+const loadUserChatHistory = async () => {
+  try {
+    if (authStore.isAuthenticated && authStore.user) {
+      const api = useApi()
+      const response = await api.getQuestions(authStore.user.id)
+      
+      if (response.success && response.data) {
+        chatHistory.value = response.data.map((question: any) => ({
+          id: question.question_id,
+          title: question.content.substring(0, 50) + (question.content.length > 50 ? '...' : ''),
+          subject: question.subject,
+          status: question.status,
+          messages: question.messages || [],
+          createdAt: question.created_at,
+          updatedAt: question.updated_at || question.created_at,
+          lastMessage: question.content.substring(0, 100) + (question.content.length > 100 ? '...' : '')
+        }))
+      }
+    }
+  } catch (error) {
+    console.error('Error loading chat history:', error)
   }
 }
 
