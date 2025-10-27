@@ -54,7 +54,7 @@ const client_manifest = {
     "module": true,
     "prefetch": true,
     "preload": true,
-    "file": "cRr5NDtf.js",
+    "file": "4UEYe6RZ.js",
     "name": "entry",
     "src": "node_modules/nuxt/dist/app/entry.js",
     "isEntry": true,
@@ -63,12 +63,12 @@ const client_manifest = {
       "node_modules/nuxt/dist/app/components/error-500.vue"
     ],
     "css": [
-      "entry.BjkvwGU9.css"
+      "entry.DSOO8fBw.css"
     ],
     "_globalCSS": true
   },
-  "entry.BjkvwGU9.css": {
-    "file": "entry.BjkvwGU9.css",
+  "entry.DSOO8fBw.css": {
+    "file": "entry.DSOO8fBw.css",
     "resourceType": "style",
     "prefetch": true,
     "preload": true

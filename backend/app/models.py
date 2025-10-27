@@ -63,7 +63,20 @@ class RegisterRequest(BaseModel):
     password: str = Field(..., min_length=8)
     first_name: str = Field(..., max_length=100)
     last_name: str = Field(..., max_length=100)
-    role: UserRole
+    role: UserRole = UserRole.CLIENT  # Default to CLIENT - admin can promote later
+
+# Admin role management models
+class RoleUpdateRequest(BaseModel):
+    user_id: UUID
+    new_role: UserRole
+    reason: Optional[str] = None
+
+class RoleUpdateResponse(BaseModel):
+    success: bool
+    message: str
+    user_id: UUID
+    previous_role: UserRole
+    new_role: UserRole
 
 class TokenData(BaseModel):
     user_id: Optional[str] = None

@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 async def init_database():
     """Initialize the database with all required tables and default data"""
     try:
-        # Connect to database
-        conn = await asyncpg.connect(settings.database_url)
+        # Connect to auth database (where users are stored)
+        conn = await asyncpg.connect(settings.auth_database_url)
         logger.info("Connected to database")
         
         # Check if tables exist
@@ -143,10 +143,9 @@ async def verify_database_integrity(conn):
     """Verify database integrity and report any issues"""
     logger.info("Verifying database integrity...")
     
-    # Check table counts
+    # Check table counts (auth database tables only)
     tables_to_check = [
-        'users', 'questions', 'answers', 'ratings', 'expert_reviews', 
-        'audit_logs', 'clients', 'experts', 'admins', 'expert_metrics'
+        'users', 'clients', 'experts', 'admins', 'role_change_history'
     ]
     
     for table in tables_to_check:
@@ -241,4 +240,4 @@ async def test_database_operations():
 
 if __name__ == "__main__":
     asyncio.run(init_database())
-    asyncio.run(test_database_operations())
+    # test_database_operations() removed - it was testing qa_system tables in qa_auth database

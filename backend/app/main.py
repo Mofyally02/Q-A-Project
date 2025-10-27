@@ -21,6 +21,7 @@ from app.services.admin_service import AdminService
 from app.services.poe_service import PoeService
 from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
+from app.routes.admin import router as admin_router
 from app.models import (
     QuestionCreate, QuestionResponse, RatingCreate, RatingResponse,
     ExpertReviewCreate, ExpertReviewResponse, AdminAnalytics, AdminOverride,
@@ -56,16 +57,21 @@ async def lifespan(app: FastAPI):
     # Initialize database connections
     await db.connect()
     
-    # Initialize queue service
-    await queue_service.connect()
-    
-    # Start background tasks
-    asyncio.create_task(process_ai_queue())
-    asyncio.create_task(process_humanization_queue())
-    asyncio.create_task(process_originality_queue())
-    asyncio.create_task(process_expert_review_queue())
-    asyncio.create_task(process_delivery_queue())
-    asyncio.create_task(process_notification_queue())
+    # Initialize queue service (optional - continue if RabbitMQ not available)
+    try:
+        await queue_service.connect()
+        logger.info("Queue service connected successfully")
+        
+        # Start background tasks only if queue service is available
+        asyncio.create_task(process_ai_queue())
+        asyncio.create_task(process_humanization_queue())
+        asyncio.create_task(process_originality_queue())
+        asyncio.create_task(process_expert_review_queue())
+        asyncio.create_task(process_delivery_queue())
+        asyncio.create_task(process_notification_queue())
+    except Exception as e:
+        logger.warning(f"Queue service not available (RabbitMQ may not be running): {e}")
+        logger.warning("API will continue without background queue processing")
     
     logger.info("AI Q&A System started successfully")
     
@@ -107,6 +113,35 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(dashboard_router)
+app.include_router(admin_router)
+
+# Health check endpoints for scalability and monitoring
+@app.get("/health")
+async def health_check():
+    """Health check endpoint - basic service availability"""
+    return {"status": "healthy", "service": "q-a-system"}
+
+@app.get("/ready")
+async def readiness_check():
+    """Readiness check - service is ready to accept requests"""
+    try:
+        # Check database connectivity
+        async for conn in get_db():
+            await conn.fetchval("SELECT 1")
+            break
+        
+        # Check Redis connectivity
+        redis_client = get_redis()
+        redis_client.ping()
+        
+        return {"status": "ready", "timestamp": __import__("datetime").datetime.utcnow().isoformat()}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service not ready: {str(e)}")
+
+@app.get("/live")
+async def liveness_check():
+    """Liveness check - service is alive and running"""
+    return {"status": "alive", "timestamp": __import__("datetime").datetime.utcnow().isoformat()}
 
 # Background task processors
 async def process_ai_queue():

@@ -1860,6 +1860,18 @@ const useApi = () => {
       body: userData
     });
   };
+  const registerClient = async (userData) => {
+    return await api("/auth/register/client", {
+      method: "POST",
+      body: { ...userData, role: "client" }
+    });
+  };
+  const registerExpert = async (userData) => {
+    return await api("/auth/register/expert", {
+      method: "POST",
+      body: { ...userData, role: "expert" }
+    });
+  };
   const loginClient = async (email, password) => {
     return await api("/auth/login/client", {
       method: "POST",
@@ -1976,6 +1988,8 @@ const useApi = () => {
     // Authentication
     login,
     register,
+    registerClient,
+    registerExpert,
     loginClient,
     loginExpert,
     loginAdmin,
@@ -2047,13 +2061,8 @@ const useAuthStore = /* @__PURE__ */ defineStore("auth", {
         const nameParts = name.trim().split(" ");
         const firstName = nameParts[0] || "";
         const lastName = nameParts.slice(1).join(" ") || "";
-        const response = await api.register({
-          email,
-          password,
-          first_name: firstName,
-          last_name: lastName,
-          role
-        });
+        const payload = { email, password, first_name: firstName, last_name: lastName };
+        const response = role === "client" ? await api.registerClient(payload) : role === "expert" ? await api.registerExpert(payload) : await api.register({ ...payload, role });
         if (response.success) {
           this.user = response.user;
           this.token = response.access_token;

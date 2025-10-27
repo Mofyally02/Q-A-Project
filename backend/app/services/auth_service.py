@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime, timedelta
 from uuid import UUID
 from app.database import get_db
-from app.models import UserResponse, LoginRequest, LoginResponse, RegisterRequest, UserRole, TokenData
+from app.models import UserResponse, LoginRequest, LoginResponse, RegisterRequest, UserRole, TokenData, RoleUpdateRequest, RoleUpdateResponse
 from app.utils.security import SecurityUtils
 from fastapi import HTTPException, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -39,20 +39,27 @@ class AuthService:
             # Generate API key
             api_key = self.security_utils.generate_api_key()
             
+            # Force role to CLIENT if user tries to register as ADMIN or EXPERT
+            # Only admins can assign these roles later
+            final_role = user_data.role
+            if final_role in [UserRole.ADMIN, UserRole.EXPERT]:
+                logger.warning(f"User {user_data.email} attempted to register as {final_role.value}, forcing to CLIENT")
+                final_role = UserRole.CLIENT
+            
             # Insert user
             user_id = await db.fetchval("""
                 INSERT INTO users (email, password_hash, first_name, last_name, role, api_key)
                 VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING user_id
             """, user_data.email, password_hash, user_data.first_name, 
-                user_data.last_name, user_data.role.value, api_key)
+                user_data.last_name, final_role.value, api_key)
             
-            # Insert into role-specific table
-            if user_data.role == UserRole.CLIENT:
+            # Insert into role-specific table based on final_role
+            if final_role == UserRole.CLIENT:
                 await db.execute("INSERT INTO clients (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", user_id)
-            elif user_data.role == UserRole.EXPERT:
+            elif final_role == UserRole.EXPERT:
                 await db.execute("INSERT INTO experts (user_id, approved) VALUES ($1, FALSE) ON CONFLICT (user_id) DO NOTHING", user_id)
-            elif user_data.role == UserRole.ADMIN:
+            elif final_role == UserRole.ADMIN:
                 await db.execute("INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", user_id)
 
             # Fetch created user
@@ -249,6 +256,69 @@ class AuthService:
                 success=False,
                 message="Registration failed"
             )
+    
+    async def update_user_role(
+        self, 
+        role_update: RoleUpdateRequest, 
+        admin_user: UserResponse, 
+        db: asyncpg.Connection
+    ) -> RoleUpdateResponse:
+        """Update user role - Admin only"""
+        try:
+            # Get target user
+            target_user = await self.get_user_by_id(role_update.user_id, db)
+            if not target_user:
+                raise HTTPException(status_code=404, detail="User not found")
+            
+            # Get previous role
+            previous_role = target_user.role
+            
+            # Prevent changing own role
+            if target_user.user_id == admin_user.user_id:
+                raise HTTPException(status_code=400, detail="Cannot change your own role")
+            
+            # Prevent changing to admin unless current user is admin
+            if role_update.new_role == UserRole.ADMIN and admin_user.role != UserRole.ADMIN:
+                raise HTTPException(status_code=403, detail="Only admins can create other admins")
+            
+            # Update role in database
+            await db.execute("""
+                UPDATE users SET role = $1 WHERE user_id = $2
+            """, role_update.new_role.value, role_update.user_id)
+            
+            # Update role-specific tables
+            # First, remove from old role table
+            if previous_role == UserRole.CLIENT:
+                await db.execute("DELETE FROM clients WHERE user_id = $1", role_update.user_id)
+            elif previous_role == UserRole.EXPERT:
+                await db.execute("DELETE FROM experts WHERE user_id = $1", role_update.user_id)
+            elif previous_role == UserRole.ADMIN:
+                await db.execute("DELETE FROM admins WHERE user_id = $1", role_update.user_id)
+            
+            # Then, add to new role table
+            if role_update.new_role == UserRole.CLIENT:
+                await db.execute("INSERT INTO clients (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", role_update.user_id)
+            elif role_update.new_role == UserRole.EXPERT:
+                await db.execute("INSERT INTO experts (user_id, approved) VALUES ($1, TRUE) ON CONFLICT (user_id) DO NOTHING", role_update.user_id)
+            elif role_update.new_role == UserRole.ADMIN:
+                await db.execute("INSERT INTO admins (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", role_update.user_id)
+            
+            # Log the role change (if audit service is available)
+            logger.info(f"Admin {admin_user.email} changed user {target_user.email} role from {previous_role.value} to {role_update.new_role.value}")
+            
+            return RoleUpdateResponse(
+                success=True,
+                message=f"Role updated from {previous_role.value} to {role_update.new_role.value}",
+                user_id=role_update.user_id,
+                previous_role=previous_role,
+                new_role=role_update.new_role
+            )
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error updating user role: {e}")
+            raise HTTPException(status_code=500, detail="Failed to update user role")
 
 # Global auth service instance
 auth_service = AuthService()

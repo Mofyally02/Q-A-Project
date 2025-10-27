@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer
 import asyncpg
-from typing import Dict, Any
+from typing import Dict, Any, List
 from app.database import get_auth_db
 from app.services.auth_service import auth_service
 from app.models import (
     LoginRequest, LoginResponse, RegisterRequest, UserResponse, 
-    UserRole, APIResponse
+    UserRole, APIResponse, RoleUpdateRequest, RoleUpdateResponse
 )
 import logging
 
@@ -111,12 +111,9 @@ async def login_admin(login_data: LoginRequest, db: asyncpg.Connection = Depends
 # Role-specific registration endpoints
 @router.post("/register/client", response_model=LoginResponse)
 async def register_client(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_auth_db)):
-    """Register new client"""
-    if user_data.role != UserRole.CLIENT:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for client registration only"
-        )
+    """Register new client (default registration)"""
+    # Force client role for this endpoint
+    user_data.role = UserRole.CLIENT
     
     try:
         result = await auth_service.register_user(user_data, db)
@@ -130,17 +127,14 @@ async def register_client(user_data: RegisterRequest, db: asyncpg.Connection = D
 
 @router.post("/register/expert", response_model=LoginResponse)
 async def register_expert(user_data: RegisterRequest, db: asyncpg.Connection = Depends(get_auth_db)):
-    """Register new expert (requires admin approval)"""
-    if user_data.role != UserRole.EXPERT:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="This endpoint is for expert registration only"
-        )
+    """Register new expert (will be created as client, admin must promote to expert)"""
+    # Force client role - admin must promote to expert
+    user_data.role = UserRole.CLIENT
     
     try:
         result = await auth_service.register_user(user_data, db)
         if result.success:
-            result.message = "Expert registration submitted. Awaiting admin approval."
+            result.message = "Registration successful. Contact admin to become an expert."
         return result
     except Exception as e:
         logger.error(f"Expert registration error: {e}")
@@ -170,4 +164,52 @@ async def register_admin(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Admin registration failed"
+        )
+
+# Admin role management endpoints
+@router.post("/admin/assign-role", response_model=RoleUpdateResponse)
+async def assign_user_role(
+    role_update: RoleUpdateRequest,
+    db: asyncpg.Connection = Depends(get_auth_db),
+    current_user: UserResponse = Depends(auth_service.require_role([UserRole.ADMIN]))
+):
+    """Admin endpoint to assign roles to users (Admin controls all role assignments)"""
+    try:
+        result = await auth_service.update_user_role(role_update, current_user, db)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Role assignment error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to assign role"
+        )
+
+@router.get("/admin/users", response_model=List[UserResponse])
+async def list_all_users(
+    db: asyncpg.Connection = Depends(get_auth_db),
+    current_user: UserResponse = Depends(auth_service.require_role([UserRole.ADMIN]))
+):
+    """Admin endpoint to list all users"""
+    try:
+        users = await db.fetch("""
+            SELECT user_id, email, first_name, last_name, role, is_active, created_at
+            FROM users
+            ORDER BY created_at DESC
+        """)
+        return [UserResponse(
+            user_id=user['user_id'],
+            email=user['email'],
+            first_name=user['first_name'],
+            last_name=user['last_name'],
+            role=UserRole(user['role']),
+            is_active=user['is_active'],
+            created_at=user['created_at']
+        ) for user in users]
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch users"
         )
