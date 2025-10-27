@@ -184,7 +184,7 @@ const templates = {
 const fetchNotifications = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await fetch('http://localhost:8000/admin/notifications', {
+    const response = await fetch('http://localhost:8000/admin/notifications/history', {
       headers: {
         'Authorization': `Bearer ${token}`
       }
@@ -192,7 +192,7 @@ const fetchNotifications = async () => {
 
     if (response.ok) {
       const result = await response.json()
-      notifications.value = result.data || []
+      notifications.value = result.data.notifications || []
     }
   } catch (error) {
     console.error('Error fetching notifications:', error)
@@ -209,13 +209,24 @@ const selectTemplate = (templateKey) => {
 const sendNotification = async () => {
   try {
     const token = localStorage.getItem('token')
-    const response = await fetch('http://localhost:8000/admin/notifications', {
+
+    // Map recipient types to backend format
+    let recipientType = 'all_clients'
+    if (newNotification.value.recipients === 'experts') recipientType = 'all_experts'
+    else if (newNotification.value.recipients === 'admins') recipientType = 'specific'
+    else if (newNotification.value.recipients === 'all') recipientType = 'all_clients' // Default to clients
+
+    const response = await fetch('http://localhost:8000/admin/notifications/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify(newNotification.value)
+      body: JSON.stringify({
+        recipient_type: recipientType,
+        subject: newNotification.value.title,
+        message: newNotification.value.message
+      })
     })
 
     if (response.ok) {
