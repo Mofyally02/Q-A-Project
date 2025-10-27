@@ -3,6 +3,7 @@ from typing import Dict, Any, Optional
 from uuid import uuid4
 import asyncpg
 from app.models import AuditLogCreate, AuditLogResponse
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

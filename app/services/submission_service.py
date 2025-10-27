@@ -136,9 +136,11 @@ class SubmissionService:
     async def get_question_status(self, question_id: str, db: asyncpg.Connection) -> APIResponse:
         """Get the current status of a question"""
         try:
+            from uuid import UUID
+            question_uuid = UUID(question_id) if isinstance(question_id, str) else question_id
             row = await db.fetchrow(
                 "SELECT question_id, status, created_at FROM questions WHERE question_id = $1",
-                uuid4() if isinstance(question_id, str) else question_id
+                question_uuid
             )
             
             if not row:
@@ -168,6 +170,8 @@ class SubmissionService:
     async def get_user_questions(self, client_id: str, db: asyncpg.Connection, limit: int = 50, offset: int = 0) -> APIResponse:
         """Get all questions for a specific client"""
         try:
+            from uuid import UUID
+            client_uuid = UUID(client_id) if isinstance(client_id, str) else client_id
             rows = await db.fetch(
                 """
                 SELECT question_id, type, subject, status, created_at
@@ -176,7 +180,7 @@ class SubmissionService:
                 ORDER BY created_at DESC 
                 LIMIT $2 OFFSET $3
                 """,
-                uuid4() if isinstance(client_id, str) else client_id,
+                client_uuid,
                 limit,
                 offset
             )
