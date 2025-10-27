@@ -166,7 +166,7 @@ class AdminAnalytics(BaseModel):
     recent_activity: List[Dict[str, Any]]
 
 class AdminOverride(BaseModel):
-    action: str = Field(..., regex="^(reassign|approve)$")
+    action: str = Field(..., pattern="^(reassign|approve)$")
     expert_id: Optional[UUID] = None
     reason: str
 

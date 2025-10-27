@@ -239,6 +239,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
+// Page meta
+definePageMeta({
+  middleware: 'admin'
+})
+
 const users = ref([])
 const searchQuery = ref('')
 const filterRole = ref('')

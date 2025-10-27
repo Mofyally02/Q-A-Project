@@ -16,5 +16,10 @@
 </template>
 
 <script setup>
+// Page meta
+definePageMeta({
+  middleware: 'admin'
+})
+
 // API Keys management
 </script>

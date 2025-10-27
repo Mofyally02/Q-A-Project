@@ -6,7 +6,6 @@
   "dependencies": {
     "@babel/parser": "7.28.4",
     "@iconify/utils": "2.3.0",
-    "@iconify/vue": "5.0.0",
     "@vue/compiler-core": "3.5.22",
     "@vue/compiler-dom": "3.5.22",
     "@vue/compiler-ssr": "3.5.22",

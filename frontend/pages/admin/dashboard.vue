@@ -213,6 +213,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 
+// Page meta
+definePageMeta({
+  middleware: 'admin'
+})
+
 const dashboardData = ref(null)
 const loading = ref(false)
 

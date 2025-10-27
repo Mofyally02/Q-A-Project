@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { getIcons } from '@iconify/utils';
 import { consola } from 'consola';
+import { createRequire } from 'node:module';
 
 const suspectProtoRx = /"(?:_|\\u0{2}5[Ff]){2}(?:p|\\u0{2}70)(?:r|\\u0{2}72)(?:o|\\u0{2}6[Ff])(?:t|\\u0{2}74)(?:o|\\u0{2}6[Ff])(?:_|\\u0{2}5[Ff]){2}"\s*:/;
 const suspectConstructorRx = /"(?:c|\\u0063)(?:o|\\u006[Ff])(?:n|\\u006[Ee])(?:s|\\u0073)(?:t|\\u0074)(?:r|\\u0072)(?:u|\\u0075)(?:c|\\u0063)(?:t|\\u0074)(?:o|\\u006[Ff])(?:r|\\u0072)"\s*:/;
@@ -159,8 +160,6 @@ function stringifyQuery(query) {
 const PROTOCOL_STRICT_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{1,2})/;
 const PROTOCOL_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{2})?/;
 const PROTOCOL_RELATIVE_REGEX = /^([/\\]\s*){2,}[^/\\]/;
-const PROTOCOL_SCRIPT_RE = /^[\s\0]*(blob|data|javascript|vbscript):$/i;
-const TRAILING_SLASH_RE = /\/$|\/\?|\/#/;
 const JOIN_LEADING_SLASH_RE = /^\.?\//;
 function hasProtocol(inputString, opts = {}) {
   if (typeof opts === "boolean") {
@@ -171,52 +170,20 @@ function hasProtocol(inputString, opts = {}) {
   }
   return PROTOCOL_REGEX.test(inputString) || (opts.acceptRelative ? PROTOCOL_RELATIVE_REGEX.test(inputString) : false);
 }
-function isScriptProtocol(protocol) {
-  return !!protocol && PROTOCOL_SCRIPT_RE.test(protocol);
-}
 function hasTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return input.endsWith("/");
   }
-  return TRAILING_SLASH_RE.test(input);
 }
 function withoutTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return (hasTrailingSlash(input) ? input.slice(0, -1) : input) || "/";
   }
-  if (!hasTrailingSlash(input, true)) {
-    return input || "/";
-  }
-  let path = input;
-  let fragment = "";
-  const fragmentIndex = input.indexOf("#");
-  if (fragmentIndex !== -1) {
-    path = input.slice(0, fragmentIndex);
-    fragment = input.slice(fragmentIndex);
-  }
-  const [s0, ...s] = path.split("?");
-  const cleanPath = s0.endsWith("/") ? s0.slice(0, -1) : s0;
-  return (cleanPath || "/") + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function withTrailingSlash(input = "", respectQueryAndFragment) {
-  if (!respectQueryAndFragment) {
+  {
     return input.endsWith("/") ? input : input + "/";
   }
-  if (hasTrailingSlash(input, true)) {
-    return input || "/";
-  }
-  let path = input;
-  let fragment = "";
-  const fragmentIndex = input.indexOf("#");
-  if (fragmentIndex !== -1) {
-    path = input.slice(0, fragmentIndex);
-    fragment = input.slice(fragmentIndex);
-    if (!path) {
-      return fragment;
-    }
-  }
-  const [s0, ...s] = path.split("?");
-  return s0 + "/" + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function hasLeadingSlash(input = "") {
   return input.startsWith("/");
@@ -315,21 +282,6 @@ function joinRelativeURL(..._input) {
     url += "/";
   }
   return url;
-}
-function isEqual(a, b, options = {}) {
-  if (!options.trailingSlash) {
-    a = withTrailingSlash(a);
-    b = withTrailingSlash(b);
-  }
-  if (!options.leadingSlash) {
-    a = withLeadingSlash(a);
-    b = withLeadingSlash(b);
-  }
-  if (!options.encoding) {
-    a = decode(a);
-    b = decode(b);
-  }
-  return a === b;
 }
 
 const protocolRelative = Symbol.for("ufo:protocolRelative");
@@ -2515,8 +2467,7 @@ function createNodeFetch() {
 const fetch = globalThis.fetch ? (...args) => globalThis.fetch(...args) : createNodeFetch();
 const Headers$1 = globalThis.Headers || s$1;
 const AbortController = globalThis.AbortController || i;
-const ofetch = createFetch({ fetch, Headers: Headers$1, AbortController });
-const $fetch$1 = ofetch;
+createFetch({ fetch, Headers: Headers$1, AbortController });
 
 function wrapToPromise(value) {
   if (!value || typeof value.then !== "function") {
@@ -4208,7 +4159,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "87f2f1db-6b9c-4462-bda4-b787184cd88d",
+    "buildId": "d0f71399-d685-4e08-82e8-25cbfdd001aa",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4644,68 +4595,75 @@ const plugins = [
 ];
 
 const assets = {
-  "/_nuxt/4UEYe6RZ.js": {
+  "/_nuxt/C6qcocyj.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"3a20d-FD+0wDM6UyFVCRpzv0vu/F/DLyw\"",
-    "mtime": "2025-10-27T13:43:25.195Z",
+    "mtime": "2025-10-27T15:16:05.136Z",
     "size": 238093,
-    "path": "../public/_nuxt/4UEYe6RZ.js"
+    "path": "../public/_nuxt/C6qcocyj.js"
   },
   "/_nuxt/DW4auUut.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"d52-dNK7rE0TgAiys3PTrFSqoMOoasI\"",
-    "mtime": "2025-10-27T13:43:25.171Z",
+    "mtime": "2025-10-27T15:16:04.683Z",
     "size": 3410,
     "path": "../public/_nuxt/DW4auUut.js"
   },
   "/_nuxt/DlAUqK2U.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"5b-eFCz/UrraTh721pgAl0VxBNR1es\"",
-    "mtime": "2025-10-27T13:43:25.154Z",
+    "mtime": "2025-10-27T15:16:04.683Z",
     "size": 91,
     "path": "../public/_nuxt/DlAUqK2U.js"
   },
   "/_nuxt/DukxZ5Fd.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"2438-JjRJIDrrfZhlpLzScnmmO1eM8uE\"",
-    "mtime": "2025-10-27T13:43:25.153Z",
+    "mtime": "2025-10-27T15:16:04.684Z",
     "size": 9272,
     "path": "../public/_nuxt/DukxZ5Fd.js"
   },
-  "/_nuxt/entry.DSOO8fBw.css": {
+  "/_nuxt/entry.tQ43nH1W.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"b1a1-hYYZ/FWoEBY1wScKZ2tOjSJjGsk\"",
-    "mtime": "2025-10-27T13:43:25.171Z",
-    "size": 45473,
-    "path": "../public/_nuxt/entry.DSOO8fBw.css"
+    "etag": "\"bcb6-5/eP9dDrc7gdBB4vCBHxgA4IVPM\"",
+    "mtime": "2025-10-27T15:16:05.066Z",
+    "size": 48310,
+    "path": "../public/_nuxt/entry.tQ43nH1W.css"
   },
   "/_nuxt/error-404.DqZyKpgk.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"dce-saxwjItO1YVdOSJb93rly2zR334\"",
-    "mtime": "2025-10-27T13:43:25.171Z",
+    "mtime": "2025-10-27T15:16:04.683Z",
     "size": 3534,
     "path": "../public/_nuxt/error-404.DqZyKpgk.css"
   },
   "/_nuxt/error-500.CZqNkBuR.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"75c-Ri+jM1T7rkunCBcNyJ0rTLFEHks\"",
-    "mtime": "2025-10-27T13:43:25.148Z",
+    "mtime": "2025-10-27T15:16:04.684Z",
     "size": 1884,
     "path": "../public/_nuxt/error-500.CZqNkBuR.css"
   },
   "/_nuxt/builds/latest.json": {
     "type": "application/json",
-    "etag": "\"47-cjDi5K/p0jcK8ACRL8Dc0mHiDXA\"",
-    "mtime": "2025-10-27T13:43:25.130Z",
+    "etag": "\"47-5omA/WIh2kzmWD3TXWwtJjVlv/E\"",
+    "mtime": "2025-10-27T15:16:04.673Z",
     "size": 71,
     "path": "../public/_nuxt/builds/latest.json"
   },
-  "/_nuxt/builds/meta/87f2f1db-6b9c-4462-bda4-b787184cd88d.json": {
+  "/_nuxt/builds/meta/d0f71399-d685-4e08-82e8-25cbfdd001aa.json": {
     "type": "application/json",
-    "etag": "\"8b-OSBqKLG/6iOx96ylMgJsViZayqM\"",
-    "mtime": "2025-10-27T13:43:25.120Z",
+    "etag": "\"8b-GZB8k/Gj+sDQbv8dpcmi68P5rwM\"",
+    "mtime": "2025-10-27T15:16:04.665Z",
     "size": 139,
-    "path": "../public/_nuxt/builds/meta/87f2f1db-6b9c-4462-bda4-b787184cd88d.json"
+    "path": "../public/_nuxt/builds/meta/d0f71399-d685-4e08-82e8-25cbfdd001aa.json"
+  },
+  "/_nuxt/builds/meta/dev.json": {
+    "type": "application/json",
+    "etag": "\"6a-a2Ag4QLIF8GzFfn74PJ+ABStXQ0\"",
+    "mtime": "2025-10-27T15:16:04.666Z",
+    "size": 106,
+    "path": "../public/_nuxt/builds/meta/dev.json"
   }
 };
 
@@ -4967,9 +4925,6 @@ function defineRenderHandler(render) {
   });
 }
 
-function baseURL() {
-  return useRuntimeConfig().app.baseURL;
-}
 function buildAssetsDir() {
   return useRuntimeConfig().app.buildAssetsDir;
 }
@@ -4982,7 +4937,10 @@ function publicAssetsURL(...path) {
   return path.length ? joinRelativeURL(publicBase, ...path) : publicBase;
 }
 
+const require = createRequire(globalThis._importMeta_.url);
+
 const collections = {
+  'heroicons': () => require('@iconify-json/heroicons/icons.json'),
 };
 
 const DEFAULT_ENDPOINT = "https://api.iconify.design";
@@ -5038,7 +4996,7 @@ const _f5YhEB = defineCachedEventHandler(async (event) => {
 
 const _SxA8c9 = defineEventHandler(() => {});
 
-const _lazy_sxErK3 = () => import('../routes/renderer.mjs').then(function (n) { return n.r; });
+const _lazy_sxErK3 = () => import('../build/renderer.mjs');
 
 const handlers = [
   { route: '', handler: _j2Rpgu, lazy: false, middleware: true, method: undefined },
@@ -5461,5 +5419,5 @@ trapUnhandledNodeErrors();
 setupGracefulShutdown(listener, nitroApp);
 const nodeServer = {};
 
-export { $fetch$1 as $, createRouter$1 as A, defu as B, withTrailingSlash as C, withoutTrailingSlash as D, nodeServer as E, getResponseStatus as a, buildAssetsURL as b, getQuery as c, defineRenderHandler as d, createError$1 as e, getRouteRules as f, getResponseStatusText as g, useNitroApp as h, hasProtocol as i, joinURL as j, isScriptProtocol as k, getContext as l, baseURL as m, klona as n, defuFn as o, publicAssetsURL as p, createHooks as q, relative as r, sanitizeStatusCode as s, isEqual as t, useRuntimeConfig as u, stringifyParsedURL as v, withQuery as w, stringifyQuery as x, parseQuery as y, toRouteMatcher as z };
+export { getResponseStatus as a, buildAssetsURL as b, getQuery as c, defineRenderHandler as d, createError$1 as e, getRouteRules as f, getResponseStatusText as g, useNitroApp as h, joinURL as j, nodeServer as n, publicAssetsURL as p, relative as r, useRuntimeConfig as u };
 //# sourceMappingURL=nitro.mjs.map
