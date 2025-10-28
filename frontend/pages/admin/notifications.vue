@@ -183,7 +183,7 @@ const templates = {
 
 const fetchNotifications = async () => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
     const response = await fetch('http://localhost:8000/admin/notifications/history', {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -208,7 +208,7 @@ const selectTemplate = (templateKey) => {
 
 const sendNotification = async () => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
 
     // Map recipient types to backend format
     let recipientType = 'all_clients'

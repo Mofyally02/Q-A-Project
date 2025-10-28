@@ -445,6 +445,45 @@ async def get_user_questions(
     """Get user's questions"""
     return await submission_service.get_user_questions(client_id, db, limit, offset)
 
+@app.get("/questions", response_model=APIResponse)
+async def get_questions(
+    limit: int = 50,
+    offset: int = 0,
+    status: str = None,
+    subject: str = None,
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """Get questions with optional filtering"""
+    try:
+        query = """
+            SELECT q.*, u.email as client_email, u.first_name, u.last_name
+            FROM questions q
+            JOIN users u ON q.client_id = u.user_id
+            WHERE 1=1
+        """
+        params = []
+
+        if status:
+            query += f" AND q.status = ${len(params) + 1}"
+            params.append(status)
+
+        if subject:
+            query += f" AND q.subject ILIKE ${len(params) + 1}"
+            params.append(f"%{subject}%")
+
+        query += f" ORDER BY q.created_at DESC LIMIT ${len(params) + 1} OFFSET ${len(params) + 2}"
+        params.extend([limit, offset])
+
+        questions = await db.fetch(query, *params)
+
+        return APIResponse(
+            success=True,
+            message="Questions retrieved successfully",
+            data={"questions": [dict(q) for q in questions]}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Rating endpoints
 @app.post("/rate-answer", response_model=APIResponse)
 async def rate_answer(

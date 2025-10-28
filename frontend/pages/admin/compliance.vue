@@ -170,7 +170,7 @@ const loading = ref(false)
 const fetchComplianceData = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
 
     // Fetch audit logs
     const logsResponse = await fetch('http://localhost:8000/admin/compliance/logs', {

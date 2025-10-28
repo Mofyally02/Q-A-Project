@@ -1,4 +1,5 @@
 import { useRuntimeConfig } from '#app'
+import { useAuthStore } from '~/stores/auth'
 
 export const useApi = () => {
   const config = useRuntimeConfig()
@@ -163,7 +164,15 @@ export const useApi = () => {
 
   // WebSocket connection for real-time updates
   const connectWebSocket = (onMessage: (data: any) => void, onError?: (error: any) => void) => {
-    const wsUrl = config.public.wsUrl || 'ws://localhost:8000/ws'
+    // Get current user from auth store
+    const authStore = useAuthStore()
+    if (!authStore.isAuthenticated || !authStore.user) {
+      console.error('Cannot connect WebSocket: User not authenticated')
+      return null
+    }
+
+    const userId = authStore.user.id
+    const wsUrl = config.public.wsUrl || `ws://localhost:8000/ws/${userId}`
     const ws = new WebSocket(wsUrl)
     
     ws.onopen = () => {

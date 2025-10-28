@@ -276,7 +276,7 @@ const filteredUsers = computed(() => {
 
 const fetchUsers = async () => {
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
     const roleParam = filterRole.value ? `&role=${filterRole.value}` : ''
     const response = await fetch(`http://localhost:8000/admin/users?skip=${(currentPage.value - 1) * pageSize.value}&limit=${pageSize.value}${roleParam}`, {
       headers: {

@@ -202,7 +202,7 @@ const maxSubjectCount = computed(() => {
 const fetchAnalyticsData = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
 
     // Fetch questions analytics
     const questionsResponse = await fetch('http://localhost:8000/admin/analytics/questions', {

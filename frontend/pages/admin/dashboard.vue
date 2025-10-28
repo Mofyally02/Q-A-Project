@@ -229,7 +229,7 @@ const maxSubjectCount = computed(() => {
 const fetchDashboardData = async () => {
   loading.value = true
   try {
-    const token = localStorage.getItem('token')
+    const token = localStorage.getItem('auth_token')
     const response = await fetch('http://localhost:8000/admin/dashboard', {
       headers: {
         'Authorization': `Bearer ${token}`
