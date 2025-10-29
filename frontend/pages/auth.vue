@@ -103,7 +103,16 @@ const handleSubmit = async () => {
     } else {
       await auth.login(email.value, password.value)
     }
-    router.push('/')
+
+    // Role-based redirect
+    const userRole = auth.userRole
+    if (userRole === 'admin') {
+      router.push('/admin/dashboard')
+    } else if (userRole === 'expert') {
+      router.push('/reviews')
+    } else {
+      router.push('/dashboard')
+    }
   } catch (e) {
     console.error(e)
     alert('Authentication failed. Please check your details and try again.')

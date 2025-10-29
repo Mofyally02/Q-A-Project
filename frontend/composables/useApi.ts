@@ -162,6 +162,36 @@ export const useApi = () => {
     return await api('/admin/stats')
   }
 
+  const getDashboardData = async () => {
+    return await api('/admin/dashboard')
+  }
+
+  const getApiKeys = async () => {
+    return await api('/admin/api-keys')
+  }
+
+  const testApiKey = async (provider: string) => {
+    return await api(`/admin/api-keys/test/${provider}`, {
+      method: 'POST'
+    })
+  }
+
+  const submitTestQuestion = async (questionData: {
+    content: string
+    subject: string
+    type?: 'text' | 'image'
+    test_reason?: string
+  }) => {
+    return await api('/admin/test/question', {
+      method: 'POST',
+      body: questionData
+    })
+  }
+
+  const getTestQuestionStatus = async (questionId: string) => {
+    return await api(`/admin/test/question/${questionId}`)
+  }
+
   // WebSocket connection for real-time updates
   const connectWebSocket = (onMessage: (data: any) => void, onError?: (error: any) => void) => {
     // Get current user from auth store
@@ -241,6 +271,11 @@ export const useApi = () => {
     getUsers,
     updateUserSubjects,
     getSystemStats,
+    getDashboardData,
+    getApiKeys,
+    testApiKey,
+    submitTestQuestion,
+    getTestQuestionStatus,
     
     // WebSocket
     connectWebSocket

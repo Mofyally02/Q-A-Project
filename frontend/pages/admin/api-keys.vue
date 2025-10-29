@@ -18,7 +18,8 @@
 <script setup>
 // Page meta
 definePageMeta({
-  middleware: 'admin'
+  middleware: 'admin',
+  layout: 'dashboard'
 })
 
 // API Keys management

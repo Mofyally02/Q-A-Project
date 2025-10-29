@@ -91,6 +91,32 @@
 
 <script setup lang="ts">
 import { navigateTo } from '#app'
+import { useAuthStore } from '~/stores/auth'
+import { onMounted } from 'vue'
+
+// Page middleware - redirect authenticated users
+definePageMeta({
+  middleware: 'redirect'
+})
+
+const authStore = useAuthStore()
+
+onMounted(async () => {
+  // Initialize auth from localStorage
+  await authStore.initializeAuth()
+  
+  // Redirect authenticated users to their dashboards
+  if (authStore.isAuthenticated && authStore.user) {
+    const role = authStore.userRole
+    if (role === 'admin') {
+      navigateTo('/admin/dashboard')
+    } else if (role === 'expert') {
+      navigateTo('/reviews')
+    } else if (role === 'client') {
+      navigateTo('/questions')
+    }
+  }
+})
 
 const scrollTo = (selector: string) => {
   const el = document.querySelector(selector)

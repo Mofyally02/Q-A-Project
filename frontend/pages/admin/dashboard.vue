@@ -215,7 +215,8 @@ import { ref, computed, onMounted } from 'vue'
 
 // Page meta
 definePageMeta({
-  middleware: 'admin'
+  middleware: 'admin',
+  layout: 'dashboard'
 })
 
 const dashboardData = ref(null)

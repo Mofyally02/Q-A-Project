@@ -11,33 +11,43 @@
         </NuxtLink>
       </div>
 
-      <!-- Navigation -->
+          <!-- Navigation -->
       <nav class="flex flex-1 flex-col">
         <ul role="list" class="flex flex-1 flex-col gap-y-7">
           <li>
             <ul role="list" class="-mx-2 space-y-1">
-              <li v-for="item in navigationItems" :key="item.name">
-                <NuxtLink 
-                  :to="item.href"
-                  class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200"
-                  :class="[
-                    isActiveRoute(item.href) 
-                      ? 'bg-primary-50 text-primary-600' 
-                      : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
-                  ]"
-                >
-                  <Icon 
-                    :name="item.icon" 
-                    class="h-6 w-6 shrink-0"
+              <template v-for="(item, idx) in navigationItems" :key="item.name">
+                <!-- Admin Section Header (show before first admin item) -->
+                <template v-if="item.section === 'admin' && shouldShowAdminSection(item)">
+                  <li class="pt-4 pb-2">
+                    <div class="px-2">
+                      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</h3>
+                    </div>
+                  </li>
+                </template>
+                <li>
+                  <NuxtLink 
+                    :to="item.href"
+                    class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200"
                     :class="[
                       isActiveRoute(item.href) 
-                        ? 'text-primary-600' 
-                        : 'text-gray-400 group-hover:text-primary-600'
+                        ? 'bg-primary-50 text-primary-600' 
+                        : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
                     ]"
-                  />
-                  {{ item.name }}
-                </NuxtLink>
-              </li>
+                  >
+                    <Icon 
+                      :name="item.icon" 
+                      class="h-6 w-6 shrink-0"
+                      :class="[
+                        isActiveRoute(item.href) 
+                          ? 'text-primary-600' 
+                          : 'text-gray-400 group-hover:text-primary-600'
+                      ]"
+                    />
+                    {{ item.name }}
+                  </NuxtLink>
+                </li>
+              </template>
             </ul>
           </li>
 
@@ -116,29 +126,33 @@
         <!-- Mobile Navigation -->
         <div class="flex-1 overflow-y-auto px-6 py-4">
           <nav class="flex flex-col space-y-4">
-            <NuxtLink 
-              v-for="item in navigationItems" 
-              :key="item.name"
-              :to="item.href"
-              class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200"
-              :class="[
-                isActiveRoute(item.href) 
-                  ? 'bg-primary-50 text-primary-600' 
-                  : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
-              ]"
-              @click="toggleSidebar"
-            >
-              <Icon 
-                :name="item.icon" 
-                class="h-6 w-6 shrink-0"
+            <template v-for="item in navigationItems" :key="item.name">
+              <!-- Admin Section Header -->
+              <div v-if="item.section === 'admin' && shouldShowAdminSection(item)" class="pt-4 pb-2">
+                <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Admin</h3>
+              </div>
+              <NuxtLink 
+                :to="item.href"
+                class="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold transition-colors duration-200"
                 :class="[
                   isActiveRoute(item.href) 
-                    ? 'text-primary-600' 
-                    : 'text-gray-400 group-hover:text-primary-600'
+                    ? 'bg-primary-50 text-primary-600' 
+                    : 'text-gray-700 hover:text-primary-600 hover:bg-primary-50'
                 ]"
-              />
-              {{ item.name }}
-            </NuxtLink>
+                @click="toggleSidebar"
+              >
+                <Icon 
+                  :name="item.icon" 
+                  class="h-6 w-6 shrink-0"
+                  :class="[
+                    isActiveRoute(item.href) 
+                      ? 'text-primary-600' 
+                      : 'text-gray-400 group-hover:text-primary-600'
+                  ]"
+                />
+                {{ item.name }}
+              </NuxtLink>
+            </template>
           </nav>
         </div>
 
@@ -215,7 +229,7 @@ const userInitials = computed(() => {
 })
 
 const navigationItems = computed(() => {
-  const items = [
+  const baseItems = [
     { 
       name: 'Dashboard', 
       href: '/dashboard', 
@@ -245,26 +259,63 @@ const navigationItems = computed(() => {
       href: '/reviews/pending', 
       icon: 'heroicons:clock',
       roles: [UserRole.EXPERT] 
-    },
-    { 
-      name: 'Analytics', 
-      href: '/admin/analytics', 
-      icon: 'heroicons:chart-bar',
-      roles: [UserRole.ADMIN] 
-    },
-    { 
-      name: 'Users', 
-      href: '/admin/users', 
-      icon: 'heroicons:users',
-      roles: [UserRole.ADMIN] 
-    },
-    { 
-      name: 'System', 
-      href: '/admin/system', 
-      icon: 'heroicons:cog-6-tooth',
-      roles: [UserRole.ADMIN] 
     }
   ]
+
+  // Admin-specific navigation items
+  const adminItems = authStore.user?.role === UserRole.ADMIN ? [
+    {
+      name: 'Admin Dashboard',
+      href: '/admin/dashboard',
+      icon: 'heroicons:home-modern',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'API Keys',
+      href: '/admin/api-keys',
+      icon: 'heroicons:key',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'Users',
+      href: '/admin/users',
+      icon: 'heroicons:users',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'Notifications',
+      href: '/admin/notifications',
+      icon: 'heroicons:bell',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'Analytics',
+      href: '/admin/analytics',
+      icon: 'heroicons:chart-bar',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'Compliance',
+      href: '/admin/compliance',
+      icon: 'heroicons:shield-check',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    },
+    {
+      name: 'System Test',
+      href: '/admin/test',
+      icon: 'heroicons:beaker',
+      roles: [UserRole.ADMIN],
+      section: 'admin'
+    }
+  ] : []
+
+  const items = [...baseItems, ...adminItems]
 
   return items.filter(item => 
     !authStore.user?.role || item.roles.includes(authStore.user.role)
@@ -274,6 +325,12 @@ const navigationItems = computed(() => {
 // Methods
 const isActiveRoute = (href: string) => {
   return route.path.startsWith(href)
+}
+
+const shouldShowAdminSection = (item: any) => {
+  // Show admin section header only for the first admin item
+  const adminItems = navigationItems.value.filter(i => i.section === 'admin')
+  return adminItems.length > 0 && adminItems[0].name === item.name
 }
 
 const toggleSidebar = () => {

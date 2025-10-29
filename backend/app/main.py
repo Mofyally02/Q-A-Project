@@ -22,6 +22,7 @@ from app.services.poe_service import PoeService
 from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.admin import router as admin_router
+from app.routes.health import router as health_router
 from app.models import (
     QuestionCreate, QuestionResponse, RatingCreate, RatingResponse,
     ExpertReviewCreate, ExpertReviewResponse, AdminAnalytics, AdminOverride,
@@ -114,13 +115,9 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(dashboard_router)
 app.include_router(admin_router)
+app.include_router(health_router)  # Comprehensive health checks
 
-# Health check endpoints for scalability and monitoring
-@app.get("/health")
-async def health_check():
-    """Health check endpoint - basic service availability"""
-    return {"status": "healthy", "service": "q-a-system"}
-
+# Legacy health endpoints (kept for compatibility)
 @app.get("/ready")
 async def readiness_check():
     """Readiness check - service is ready to accept requests"""

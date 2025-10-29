@@ -157,6 +157,161 @@ async def test_api_key(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ========================================
+# 7. SYSTEM TEST
+# ========================================
+
+@router.post("/test/question", response_model=APIResponse)
+async def test_question_submission(
+    question_data: Dict[str, Any],
+    current_user: UserResponse = Depends(require_admin),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """Submit a test question to verify system functionality after API key updates"""
+    try:
+        from uuid import uuid4, UUID
+        from app.services.submission_service import SubmissionService
+        from app.services.queue_service import QueueService
+        from datetime import datetime
+        
+        submission_service = SubmissionService()
+        queue_service = QueueService()
+        
+        # Create question data with admin user as client (for testing)
+        question_id = uuid4()
+        content_text = question_data.get("content", "")
+        subject = question_data.get("subject", "Test Question")
+        question_type = question_data.get("type", "text")
+        
+        # Prepare content
+        if question_type == "text":
+            content = {"data": content_text, "format": "text"}
+        else:
+            content = question_data.get("content_obj", {"data": "", "format": "text"})
+        
+        # Mark question as test question in metadata
+        metadata = {
+            "is_test": True,
+            "tested_by": current_user.user_id,
+            "test_reason": question_data.get("test_reason", "API key verification"),
+            "test_timestamp": datetime.utcnow().isoformat()
+        }
+        
+        # Store test question in database
+        # asyncpg handles JSONB conversion automatically
+        await db.execute(
+            """
+            INSERT INTO questions (question_id, client_id, type, content, subject, status, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            """,
+            question_id,
+            current_user.user_id,  # Use admin as client for test
+            question_type,
+            content,
+            subject,
+            "submitted",
+            metadata
+        )
+        
+        # Queue for AI processing (this will test the API keys)
+        await queue_service.enqueue_ai_processing(str(question_id))
+        
+        # Log test action
+        await db.execute("""
+            INSERT INTO audit_logs (user_id, action, details)
+            VALUES ($1, $2, $3)
+        """, current_user.user_id, "admin_test_question", {
+            "question_id": str(question_id),
+            "subject": subject,
+            "reason": question_data.get("test_reason", "API key verification")
+        })
+        
+        return APIResponse(
+            success=True,
+            message="Test question submitted successfully. System is processing to verify API keys.",
+            data={
+                "question_id": str(question_id),
+                "status": "submitted",
+                "test_mode": True,
+                "message": "Question queued for processing. Check status in a few moments."
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to submit test question: {str(e)}")
+
+@router.get("/test/question/{question_id}", response_model=APIResponse)
+async def get_test_question_status(
+    question_id: str,
+    current_user: UserResponse = Depends(require_admin),
+    db: asyncpg.Connection = Depends(get_db)
+):
+    """Get status of a test question"""
+    try:
+        from uuid import UUID
+        
+        question_uuid = UUID(question_id)
+        row = await db.fetchrow(
+            """
+            SELECT q.*, 
+                   a.ai_response,
+                   a.humanized_response,
+                   a.confidence_score,
+                   oc.ai_content_percentage
+            FROM questions q
+            LEFT JOIN answers a ON q.question_id = a.question_id
+            LEFT JOIN originality_checks oc ON q.question_id = oc.question_id
+            WHERE q.question_id = $1
+            """,
+            question_uuid
+        )
+        
+        if not row:
+            raise HTTPException(status_code=404, detail="Test question not found")
+        
+        # Check if it's actually a test question
+        metadata = row.get("metadata") or {}
+        if not metadata.get("is_test"):
+            return APIResponse(
+                success=False,
+                message="Question is not a test question"
+            )
+        
+        result = {
+            "question_id": str(row["question_id"]),
+            "subject": row["subject"],
+            "status": row["status"],
+            "created_at": row["created_at"].isoformat(),
+            "test_metadata": metadata,
+            "has_ai_response": row["ai_response"] is not None,
+            "has_humanized_response": row["humanized_response"] is not None,
+            "confidence_score": float(row["confidence_score"]) if row["confidence_score"] else None,
+            "ai_content_percentage": float(row["ai_content_percentage"]) if row["ai_content_percentage"] else None
+        }
+        
+        # Determine system health based on processing status
+        if row["status"] == "completed" and row["ai_response"]:
+            result["system_status"] = "healthy"
+            result["message"] = "API keys are working correctly. System processed the test question successfully."
+        elif row["status"] == "failed":
+            result["system_status"] = "error"
+            result["message"] = "System encountered an error. Check API keys and configuration."
+        elif row["status"] in ["submitted", "processing"]:
+            result["system_status"] = "processing"
+            result["message"] = "Test question is being processed. Please check again in a moment."
+        else:
+            result["system_status"] = "pending"
+            result["message"] = "Test question is pending processing."
+        
+        return APIResponse(
+            success=True,
+            message="Test question status retrieved",
+            data=result
+        )
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid question ID format")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ========================================
 # 3. USER MANAGEMENT
 # ========================================
 

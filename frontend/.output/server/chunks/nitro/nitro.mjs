@@ -160,6 +160,8 @@ function stringifyQuery(query) {
 const PROTOCOL_STRICT_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{1,2})/;
 const PROTOCOL_REGEX = /^[\s\w\0+.-]{2,}:([/\\]{2})?/;
 const PROTOCOL_RELATIVE_REGEX = /^([/\\]\s*){2,}[^/\\]/;
+const PROTOCOL_SCRIPT_RE = /^[\s\0]*(blob|data|javascript|vbscript):$/i;
+const TRAILING_SLASH_RE = /\/$|\/\?|\/#/;
 const JOIN_LEADING_SLASH_RE = /^\.?\//;
 function hasProtocol(inputString, opts = {}) {
   if (typeof opts === "boolean") {
@@ -170,20 +172,52 @@ function hasProtocol(inputString, opts = {}) {
   }
   return PROTOCOL_REGEX.test(inputString) || (opts.acceptRelative ? PROTOCOL_RELATIVE_REGEX.test(inputString) : false);
 }
+function isScriptProtocol(protocol) {
+  return !!protocol && PROTOCOL_SCRIPT_RE.test(protocol);
+}
 function hasTrailingSlash(input = "", respectQueryAndFragment) {
-  {
+  if (!respectQueryAndFragment) {
     return input.endsWith("/");
   }
+  return TRAILING_SLASH_RE.test(input);
 }
 function withoutTrailingSlash(input = "", respectQueryAndFragment) {
-  {
+  if (!respectQueryAndFragment) {
     return (hasTrailingSlash(input) ? input.slice(0, -1) : input) || "/";
   }
+  if (!hasTrailingSlash(input, true)) {
+    return input || "/";
+  }
+  let path = input;
+  let fragment = "";
+  const fragmentIndex = input.indexOf("#");
+  if (fragmentIndex !== -1) {
+    path = input.slice(0, fragmentIndex);
+    fragment = input.slice(fragmentIndex);
+  }
+  const [s0, ...s] = path.split("?");
+  const cleanPath = s0.endsWith("/") ? s0.slice(0, -1) : s0;
+  return (cleanPath || "/") + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function withTrailingSlash(input = "", respectQueryAndFragment) {
-  {
+  if (!respectQueryAndFragment) {
     return input.endsWith("/") ? input : input + "/";
   }
+  if (hasTrailingSlash(input, true)) {
+    return input || "/";
+  }
+  let path = input;
+  let fragment = "";
+  const fragmentIndex = input.indexOf("#");
+  if (fragmentIndex !== -1) {
+    path = input.slice(0, fragmentIndex);
+    fragment = input.slice(fragmentIndex);
+    if (!path) {
+      return fragment;
+    }
+  }
+  const [s0, ...s] = path.split("?");
+  return s0 + "/" + (s.length > 0 ? `?${s.join("?")}` : "") + fragment;
 }
 function hasLeadingSlash(input = "") {
   return input.startsWith("/");
@@ -282,6 +316,21 @@ function joinRelativeURL(..._input) {
     url += "/";
   }
   return url;
+}
+function isEqual(a, b, options = {}) {
+  if (!options.trailingSlash) {
+    a = withTrailingSlash(a);
+    b = withTrailingSlash(b);
+  }
+  if (!options.leadingSlash) {
+    a = withLeadingSlash(a);
+    b = withLeadingSlash(b);
+  }
+  if (!options.encoding) {
+    a = decode(a);
+    b = decode(b);
+  }
+  return a === b;
 }
 
 const protocolRelative = Symbol.for("ufo:protocolRelative");
@@ -2467,7 +2516,8 @@ function createNodeFetch() {
 const fetch = globalThis.fetch ? (...args) => globalThis.fetch(...args) : createNodeFetch();
 const Headers$1 = globalThis.Headers || s$1;
 const AbortController = globalThis.AbortController || i;
-createFetch({ fetch, Headers: Headers$1, AbortController });
+const ofetch = createFetch({ fetch, Headers: Headers$1, AbortController });
+const $fetch$1 = ofetch;
 
 function wrapToPromise(value) {
   if (!value || typeof value.then !== "function") {
@@ -4159,7 +4209,7 @@ function _expandFromEnv(value) {
 const _inlineRuntimeConfig = {
   "app": {
     "baseURL": "/",
-    "buildId": "05d08400-dbcb-4cbc-9470-eb34dfbdc71b",
+    "buildId": "bf0b4a06-3417-4496-8dc3-989378760348",
     "buildAssetsDir": "/_nuxt/",
     "cdnURL": ""
   },
@@ -4595,68 +4645,75 @@ const plugins = [
 ];
 
 const assets = {
-  "/_nuxt/C6qcocyj.js": {
-    "type": "text/javascript; charset=utf-8",
-    "etag": "\"3a20d-FD+0wDM6UyFVCRpzv0vu/F/DLyw\"",
-    "mtime": "2025-10-27T15:54:18.610Z",
-    "size": 238093,
-    "path": "../public/_nuxt/C6qcocyj.js"
-  },
   "/_nuxt/DW4auUut.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"d52-dNK7rE0TgAiys3PTrFSqoMOoasI\"",
-    "mtime": "2025-10-27T15:54:18.094Z",
+    "mtime": "2025-10-29T16:13:52.577Z",
     "size": 3410,
     "path": "../public/_nuxt/DW4auUut.js"
   },
   "/_nuxt/DlAUqK2U.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"5b-eFCz/UrraTh721pgAl0VxBNR1es\"",
-    "mtime": "2025-10-27T15:54:18.094Z",
+    "mtime": "2025-10-29T16:13:52.577Z",
     "size": 91,
     "path": "../public/_nuxt/DlAUqK2U.js"
   },
   "/_nuxt/DukxZ5Fd.js": {
     "type": "text/javascript; charset=utf-8",
     "etag": "\"2438-JjRJIDrrfZhlpLzScnmmO1eM8uE\"",
-    "mtime": "2025-10-27T15:54:18.093Z",
+    "mtime": "2025-10-29T16:13:52.579Z",
     "size": 9272,
     "path": "../public/_nuxt/DukxZ5Fd.js"
   },
-  "/_nuxt/entry.tQ43nH1W.css": {
+  "/_nuxt/entry.CcULP-1e.css": {
     "type": "text/css; charset=utf-8",
-    "etag": "\"bcb6-5/eP9dDrc7gdBB4vCBHxgA4IVPM\"",
-    "mtime": "2025-10-27T15:54:18.331Z",
-    "size": 48310,
-    "path": "../public/_nuxt/entry.tQ43nH1W.css"
+    "etag": "\"c004-6TFwvfads3YV28MxSlqosxOeneo\"",
+    "mtime": "2025-10-29T16:13:52.578Z",
+    "size": 49156,
+    "path": "../public/_nuxt/entry.CcULP-1e.css"
   },
   "/_nuxt/error-404.DqZyKpgk.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"dce-saxwjItO1YVdOSJb93rly2zR334\"",
-    "mtime": "2025-10-27T15:54:18.095Z",
+    "mtime": "2025-10-29T16:13:52.578Z",
     "size": 3534,
     "path": "../public/_nuxt/error-404.DqZyKpgk.css"
   },
   "/_nuxt/error-500.CZqNkBuR.css": {
     "type": "text/css; charset=utf-8",
     "etag": "\"75c-Ri+jM1T7rkunCBcNyJ0rTLFEHks\"",
-    "mtime": "2025-10-27T15:54:18.095Z",
+    "mtime": "2025-10-29T16:13:52.578Z",
     "size": 1884,
     "path": "../public/_nuxt/error-500.CZqNkBuR.css"
   },
+  "/_nuxt/hWiAisO2.js": {
+    "type": "text/javascript; charset=utf-8",
+    "etag": "\"3a419-5o/O1NCyf+/BGf/rxsIK679SFO4\"",
+    "mtime": "2025-10-29T16:13:52.589Z",
+    "size": 238617,
+    "path": "../public/_nuxt/hWiAisO2.js"
+  },
   "/_nuxt/builds/latest.json": {
     "type": "application/json",
-    "etag": "\"47-Cm82giz34XsbGTtZYbIwEZRv5KE\"",
-    "mtime": "2025-10-27T15:54:18.081Z",
+    "etag": "\"47-D94UokUn9O2YXe/91s8dOifXK+Y\"",
+    "mtime": "2025-10-29T16:13:52.524Z",
     "size": 71,
     "path": "../public/_nuxt/builds/latest.json"
   },
-  "/_nuxt/builds/meta/05d08400-dbcb-4cbc-9470-eb34dfbdc71b.json": {
+  "/_nuxt/builds/meta/bf0b4a06-3417-4496-8dc3-989378760348.json": {
     "type": "application/json",
-    "etag": "\"8b-oR4wEeMnSfqIInsuY/tfqZpXaXQ\"",
-    "mtime": "2025-10-27T15:54:18.070Z",
+    "etag": "\"8b-NoI8TBglwEQgUD0GQJYISO2hheM\"",
+    "mtime": "2025-10-29T16:13:52.498Z",
     "size": 139,
-    "path": "../public/_nuxt/builds/meta/05d08400-dbcb-4cbc-9470-eb34dfbdc71b.json"
+    "path": "../public/_nuxt/builds/meta/bf0b4a06-3417-4496-8dc3-989378760348.json"
+  },
+  "/_nuxt/builds/meta/dev.json": {
+    "type": "application/json",
+    "etag": "\"6a-xdaCLtrJzrm8Wi0PsnEdXNl3FWM\"",
+    "mtime": "2025-10-29T16:13:52.515Z",
+    "size": 106,
+    "path": "../public/_nuxt/builds/meta/dev.json"
   }
 };
 
@@ -4918,6 +4975,9 @@ function defineRenderHandler(render) {
   });
 }
 
+function baseURL() {
+  return useRuntimeConfig().app.baseURL;
+}
 function buildAssetsDir() {
   return useRuntimeConfig().app.buildAssetsDir;
 }
@@ -4989,7 +5049,7 @@ const _f5YhEB = defineCachedEventHandler(async (event) => {
 
 const _SxA8c9 = defineEventHandler(() => {});
 
-const _lazy_sxErK3 = () => import('../build/renderer.mjs');
+const _lazy_sxErK3 = () => import('../routes/renderer.mjs').then(function (n) { return n.r; });
 
 const handlers = [
   { route: '', handler: _j2Rpgu, lazy: false, middleware: true, method: undefined },
@@ -5412,5 +5472,5 @@ trapUnhandledNodeErrors();
 setupGracefulShutdown(listener, nitroApp);
 const nodeServer = {};
 
-export { getResponseStatus as a, buildAssetsURL as b, getQuery as c, defineRenderHandler as d, createError$1 as e, getRouteRules as f, getResponseStatusText as g, useNitroApp as h, joinURL as j, nodeServer as n, publicAssetsURL as p, relative as r, useRuntimeConfig as u };
+export { $fetch$1 as $, createRouter$1 as A, defu as B, withTrailingSlash as C, withoutTrailingSlash as D, nodeServer as E, getResponseStatus as a, buildAssetsURL as b, getQuery as c, defineRenderHandler as d, createError$1 as e, getRouteRules as f, getResponseStatusText as g, useNitroApp as h, hasProtocol as i, joinURL as j, isScriptProtocol as k, getContext as l, baseURL as m, klona as n, defuFn as o, publicAssetsURL as p, createHooks as q, relative as r, sanitizeStatusCode as s, isEqual as t, useRuntimeConfig as u, stringifyParsedURL as v, withQuery as w, stringifyQuery as x, parseQuery as y, toRouteMatcher as z };
 //# sourceMappingURL=nitro.mjs.map

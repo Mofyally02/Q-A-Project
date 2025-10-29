@@ -1,15 +1,18 @@
 <template>
-  <div id="app" class="h-screen bg-gray-100 flex">
+  <div id="app">
     <!-- Loading Overlay -->
-    <div v-if="isLoading" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div v-if="isLoading && isClientRoute" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center">
       <div class="flex flex-col items-center space-y-4">
         <div class="spinner w-8 h-8"></div>
         <p class="text-gray-600 font-medium">Loading AL-Tech Academy Q&A...</p>
       </div>
     </div>
 
-    <!-- Main App Layout -->
-    <div v-else class="flex w-full h-full">
+    <!-- Admin/Expert routes use layouts - render NuxtPage -->
+    <NuxtPage v-if="isAdminOrExpertRoute" />
+
+    <!-- Client Q&A Interface (only for client routes) -->
+    <div v-else-if="!isLoading && isClientRoute" class="h-screen bg-gray-100 flex">
       <!-- Sidebar -->
       <div class="w-80 bg-white border-r border-gray-200 flex flex-col" :class="{ 'hidden lg:flex': !showSidebar }">
         <!-- Sidebar Header -->
@@ -316,8 +319,8 @@
       </div>
     </div>
 
-    <!-- Login/Signup Modal -->
-    <div v-if="showLoginModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <!-- Login/Signup Modal (only for client routes) -->
+    <div v-if="showLoginModal && isClientRoute" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div class="bg-white rounded-2xl p-8 w-full max-w-md mx-4">
         <div class="text-center mb-6">
           <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -546,6 +549,17 @@ import AdminPanel from '~/components/AdminPanel.vue'
 const authStore = useAuthStore()
 const questionsStore = useQuestionsStore()
 const toast = useToast()
+const route = useRoute()
+
+// Check if current route should use layouts (admin/expert/auth pages)
+const isAdminOrExpertRoute = computed(() => {
+  const path = route.path
+  return path.startsWith('/admin') || path.startsWith('/reviews') || path.startsWith('/auth') || path.startsWith('/expert')
+})
+
+const isClientRoute = computed(() => {
+  return !isAdminOrExpertRoute.value
+})
 
 // Global loading state
 const isLoading = ref(true)
@@ -1083,7 +1097,13 @@ onMounted(async () => {
   try {
     await authStore.initializeAuth()
     
-    if (authStore.isAuthenticated) {
+    // Redirect authenticated admins to admin dashboard if on wrong route
+    if (authStore.isAuthenticated && authStore.userRole === 'admin' && isClientRoute.value && route.path !== '/') {
+      await navigateTo('/admin/dashboard')
+      return
+    }
+    
+    if (authStore.isAuthenticated && isClientRoute.value) {
       await questionsStore.fetchQuestions(authStore.user?.id)
       initializeWebSocket()
     }

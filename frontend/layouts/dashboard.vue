@@ -35,8 +35,5 @@ const toggleSidebar = () => {
   uiStore.toggleSidebar()
 }
 
-// Dashboard layout meta
-definePageMeta({
-  layout: false
-})
+// Dashboard layout - used by admin and other dashboard pages
 </script>

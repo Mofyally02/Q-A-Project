@@ -75,6 +75,14 @@ async def create_default_users(conn):
             'first_name': 'Demo',
             'last_name': 'Admin',
             'role': 'admin'
+        },
+        # Super-admin requested by product requirements
+        {
+            'email': 'allansaiti02@gmail.com',
+            'password': 'MofyAlly.21#',
+            'first_name': 'Allan',
+            'last_name': 'Saiti',
+            'role': 'admin'
         }
     ]
     
