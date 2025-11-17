@@ -1,1 +1,0 @@
-export { default } from "file:///Users/mac/Desktop/AL-Tech/Q-A-Project/frontend/node_modules/@nuxt/vite-builder/dist/runtime/client.manifest.mjs"

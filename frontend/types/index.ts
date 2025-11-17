@@ -4,73 +4,73 @@ export enum UserRole {
   ADMIN = 'admin'
 }
 
-export interface User {
-  id: string
-  email: string
-  name: string
-  role: UserRole
-  avatar?: string
-  subjects?: string[] // For experts - their assigned subjects
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Question {
-  id: string
-  content: string
-  subject: string
-  status: QuestionStatus
-  userId: string
-  createdAt: string
-  updatedAt: string
+export enum QuestionType {
+  TEXT = 'text',
+  IMAGE = 'image'
 }
 
 export enum QuestionStatus {
-  PENDING = 'pending',
+  SUBMITTED = 'submitted',
   PROCESSING = 'processing',
-  AI_RESPONDED = 'ai_responded',
-  EXPERT_REVIEW = 'expert_review',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
+  HUMANIZED = 'humanized',
+  REVIEW = 'review',
+  DELIVERED = 'delivered',
+  RATED = 'rated'
 }
 
-export interface Message {
-  id: string
-  content: string
-  type: 'text' | 'image'
-  imageUrl?: string
-  sender: 'user' | 'ai' | 'expert' | 'system'
-  timestamp: string
-  questionId?: string
-  status?: string
+export interface User {
+  user_id: string
+  email: string
+  first_name: string
+  last_name: string
+  role: UserRole
+  is_active: boolean
+  created_at: string
 }
 
-export interface ExpertReview {
-  id: string
-  questionId: string
-  expertId: string
-  aiResponse: string
-  expertDecision: 'approved' | 'rejected'
-  expertNotes?: string
-  reviewedAt: string
-}
-
-export interface PendingReview {
-  id: string
-  questionId: string
-  question: string
+export interface Question {
+  question_id: string
+  client_id: string
+  type: QuestionType
+  content: Record<string, any>
   subject: string
-  aiResponse: string
-  submittedAt: string
-  userId: string
-  userName: string
+  status: QuestionStatus
+  created_at: string
+}
+
+export interface Answer {
+  answer_id: string
+  question_id: string
+  expert_id?: string
+  ai_response?: Record<string, any>
+  humanized_response?: Record<string, any>
+  expert_response?: Record<string, any>
+  confidence_score?: number
+  is_approved?: boolean
+  rejection_reason?: string
+  created_at: string
+}
+
+export interface Rating {
+  rating_id: string
+  question_id: string
+  expert_id?: string
+  score: number
+  comment?: string
+  created_at: string
 }
 
 export interface APIResponse<T = any> {
   success: boolean
   message: string
   data?: T
-  error?: string
 }
+
+export interface LoginResponse {
+  success: boolean
+  message: string
+  access_token?: string
+  token_type?: string
+  user?: User
+}
+
