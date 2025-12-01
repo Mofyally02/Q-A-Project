@@ -8,7 +8,7 @@
 
 -- Create userrole enum
 DO $$ BEGIN
-    CREATE TYPE userrole AS ENUM ('client', 'expert', 'admin');
+    CREATE TYPE userrole AS ENUM ('client', 'expert', 'admin', 'super_admin', 'admin_editor');
 EXCEPTION
     WHEN duplicate_object THEN null;
 END $$;
@@ -29,7 +29,9 @@ CREATE TABLE IF NOT EXISTS users (
     last_password_change TIMESTAMP WITH TIME ZONE,
     api_key VARCHAR(255) UNIQUE,
     profile_data JSONB,
-    CONSTRAINT role_check CHECK (role IN ('client', 'expert', 'admin'))
+    is_banned BOOLEAN NOT NULL DEFAULT FALSE,
+    invited_by UUID REFERENCES users(user_id) ON DELETE SET NULL,
+    CONSTRAINT role_check CHECK (role IN ('client', 'expert', 'admin', 'super_admin', 'admin_editor'))
 );
 
 -- Users Indexes
@@ -39,6 +41,8 @@ CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 CREATE INDEX IF NOT EXISTS idx_users_last_login ON users(last_login);
 CREATE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key) WHERE api_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_is_banned ON users(is_banned) WHERE is_banned = TRUE;
+CREATE INDEX IF NOT EXISTS idx_users_invited_by ON users(invited_by) WHERE invited_by IS NOT NULL;
 
 -- 2. Clients Table
 CREATE TABLE IF NOT EXISTS clients (

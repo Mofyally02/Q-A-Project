@@ -1,7 +1,9 @@
 export enum UserRole {
   CLIENT = 'client',
   EXPERT = 'expert',
-  ADMIN = 'admin'
+  ADMIN = 'admin',
+  SUPER_ADMIN = 'super_admin',
+  ADMIN_EDITOR = 'admin_editor'
 }
 
 export enum QuestionType {

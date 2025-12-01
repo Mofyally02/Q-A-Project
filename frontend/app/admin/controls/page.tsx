@@ -1,453 +1,349 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useAuthStore } from '@/stores/authStore'
-import { apiHelpers } from '@/lib/api'
-import { Search, Download, Users, Activity, AlertTriangle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { 
+  Zap, 
+  Search, 
+  RefreshCw, 
+  UserCheck, 
+  CheckCircle, 
+  XCircle,
+  AlertTriangle,
+  Send,
+  Loader2,
+  ArrowRight
+} from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAuthStore } from '@/stores/authStore'
+import { UserRole } from '@/types'
+import { apiHelpers, hydrateApiAuth } from '@/app/client/lib/api'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export default function AdminControlsPage() {
-  const { user, hasRole } = useAuthStore()
-  const [questionSearchId, setQuestionSearchId] = useState('')
+  const router = useRouter()
+  const { user } = useAuthStore()
+  const [loading, setLoading] = useState(false)
+  const [questionId, setQuestionId] = useState('')
   const [selectedQuestion, setSelectedQuestion] = useState<any>(null)
   const [experts, setExperts] = useState<any[]>([])
   const [reassignExpertId, setReassignExpertId] = useState('')
   const [reassignReason, setReassignReason] = useState('')
-  const [approveReason, setApproveReason] = useState('')
-  
-  const [exportDataType, setExportDataType] = useState('questions')
-  const [exportDays, setExportDays] = useState(30)
-  const [exportResult, setExportResult] = useState<any>(null)
-  
-  const [expertPerformance, setExpertPerformance] = useState<any[]>([])
-  const [systemHealth, setSystemHealth] = useState<any>(null)
-  const [churnRisk, setChurnRisk] = useState<any[]>([])
-
-  // Redirect if not admin
-  useEffect(() => {
-    if (user && !hasRole('admin' as any)) {
-      window.location.href = '/dashboard'
-    }
-  }, [user, hasRole])
+  const [activeTab, setActiveTab] = useState('search')
 
   useEffect(() => {
-    fetchExperts()
-    fetchAnalytics()
+    hydrateApiAuth()
   }, [])
 
+  useEffect(() => {
+    if (!user) return
+    const isAdmin = user.role === UserRole.ADMIN || 
+                   user.role === UserRole.SUPER_ADMIN || 
+                   user.role === UserRole.ADMIN_EDITOR ||
+                   user.email === 'allansaiti02@gmail.com'
+    if (!isAdmin) {
+      toast.error('Admin access only')
+      router.replace('/admin/dashboard')
+      return
+    }
+    loadExperts()
+  }, [user, router])
+
+  const loadExperts = async () => {
+    try {
+      const response = await apiHelpers.getUsers({ role: 'expert' })
+      if (response.data?.success) {
+        setExperts(response.data.data?.users || [])
+      }
+    } catch (error) {
+      console.error('Error loading experts:', error)
+    }
+  }
+
   const searchQuestion = async () => {
-    if (!questionSearchId) {
+    if (!questionId) {
       toast.error('Please enter a question ID')
       return
     }
     
     try {
-      const response = await apiHelpers.getQuestionStatus(questionSearchId)
-      if (response.data.success) {
+      setLoading(true)
+      const response = await apiHelpers.getQuestionStatus(questionId)
+      if (response.data?.success) {
         setSelectedQuestion(response.data.data)
       } else {
-        toast.error(response.data.message || 'Question not found')
+        toast.error(response.data?.message || 'Question not found')
+        setSelectedQuestion(null)
       }
     } catch (error: any) {
-      toast.error('Error searching question')
+      toast.error(error?.response?.data?.detail || 'Failed to find question')
+      setSelectedQuestion(null)
+    } finally {
+      setLoading(false)
     }
   }
 
-  const fetchExperts = async () => {
-    try {
-      const response = await apiHelpers.getUsers()
-      if (response.data.success) {
-        setExperts(response.data.data.filter((u: any) => u.role === 'expert'))
-      }
-    } catch (error) {
-      console.error('Error fetching experts:', error)
-    }
-  }
-
-  const performReassign = async () => {
+  const handleReassign = async () => {
     if (!selectedQuestion || !reassignExpertId || !reassignReason) {
-      toast.error('Please fill in all fields')
+      toast.error('Please fill all fields')
       return
     }
     
     try {
-      const response = await apiHelpers.adminOverride(selectedQuestion.question_id, {
-        action: 'reassign',
+      setLoading(true)
+      await apiHelpers.reassignQuestion(selectedQuestion.question_id, {
         expert_id: reassignExpertId,
         reason: reassignReason
       })
-      
-      if (response.data.success) {
-        toast.success('Question reassigned successfully')
-        setReassignExpertId('')
-        setReassignReason('')
-        await searchQuestion()
-      } else {
-        toast.error(response.data.message || 'Failed to reassign question')
-      }
+      toast.success('Question reassigned successfully')
+      setReassignExpertId('')
+      setReassignReason('')
+      await searchQuestion()
     } catch (error: any) {
-      toast.error('Error reassigning question')
+      toast.error(error?.response?.data?.detail || 'Failed to reassign')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const performApprove = async () => {
-    if (!selectedQuestion || !approveReason) {
-      toast.error('Please provide a reason')
+  const handleForceDeliver = async () => {
+    if (!selectedQuestion) {
+      toast.error('Please search for a question first')
       return
     }
     
     try {
-      const response = await apiHelpers.adminOverride(selectedQuestion.question_id, {
-        action: 'approve',
-        reason: approveReason
-      })
-      
-      if (response.data.success) {
-        toast.success('Answer approved successfully')
-        setApproveReason('')
-        await searchQuestion()
-      } else {
-        toast.error(response.data.message || 'Failed to approve answer')
-      }
+      setLoading(true)
+      await apiHelpers.forceDeliver(selectedQuestion.question_id)
+      toast.success('Question force delivered')
+      await searchQuestion()
     } catch (error: any) {
-      toast.error('Error approving answer')
+      toast.error(error?.response?.data?.detail || 'Failed to force deliver')
+    } finally {
+      setLoading(false)
     }
   }
 
-  const exportData = async () => {
-    try {
-      const response = await apiHelpers.exportData(exportDataType, exportDays)
-      if (response.data.success) {
-        setExportResult(response.data.data)
-        toast.success(`Exported ${response.data.data.count} records`)
-      } else {
-        toast.error(response.data.message || 'Failed to export data')
-      }
-    } catch (error: any) {
-      toast.error('Error exporting data')
+  const getStatusBadge = (status: string) => {
+    const variants: Record<string, 'default' | 'secondary' | 'success' | 'warning' | 'info' | 'outline' | 'error'> = {
+      submitted: 'default',
+      processing: 'secondary',
+      review: 'default',
+      delivered: 'success',
+      rated: 'success'
     }
-  }
-
-  const downloadExport = () => {
-    if (!exportResult) return
-    
-    const dataStr = JSON.stringify(exportResult.data, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${exportDataType}_export_${new Date().toISOString().split('T')[0]}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const fetchAnalytics = async () => {
-    try {
-      const response = await apiHelpers.getAdminAnalytics(30)
-      if (response.data.success && response.data.data) {
-        setExpertPerformance(response.data.data.expert_performance?.expert_performance || [])
-        setSystemHealth(response.data.data.system_health || {})
-        setChurnRisk(response.data.data.churn_risk_analysis?.at_risk_clients || [])
-      }
-    } catch (error) {
-      console.error('Error fetching analytics:', error)
-    }
+    return (
+      <Badge variant={variants[status] || 'outline'}>
+        {status}
+      </Badge>
+    )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Controls</h1>
-          <p className="mt-1 text-sm text-gray-500">Manage questions, experts, and system operations</p>
+    <div className="w-full space-y-4 sm:space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 w-full">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+            <Zap className="w-8 h-8 text-primary" />
+            Workflow Controls
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Override workflows, reassign questions, and manage platform operations
+          </p>
         </div>
+        <Button variant="outline" onClick={() => router.push('/admin/dashboard')}>
+          Back to Dashboard
+        </Button>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        {/* Question Override Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Question Override Controls</h2>
-            <p className="mt-1 text-sm text-gray-500">Reassign questions or approve answers manually</p>
-          </div>
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Search Question by ID
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={questionSearchId}
-                  onChange={(e) => setQuestionSearchId(e.target.value)}
-                  placeholder="Enter question ID"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="search">Search & Manage</TabsTrigger>
+          <TabsTrigger value="reassign">Reassign Question</TabsTrigger>
+          <TabsTrigger value="override">Override Actions</TabsTrigger>
+        </TabsList>
+
+        {/* Search & Manage Tab */}
+        <TabsContent value="search" className="space-y-6">
+          <Card className="glass border-border/50 p-6">
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Enter question ID..."
+                  value={questionId}
+                  onChange={(e) => setQuestionId(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && searchQuestion()}
+                  className="bg-background/50 border-border/50"
                 />
-                <button
-                  onClick={searchQuestion}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              </div>
+              <Button onClick={searchQuestion} disabled={loading || !questionId}>
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+          </Card>
+
+          {selectedQuestion && (
+            <Card className="glass border-border/50 p-6">
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Question Details</h3>
+                    <p className="text-sm text-muted-foreground mt-1">ID: {selectedQuestion.question_id}</p>
+                  </div>
+                  {getStatusBadge(selectedQuestion.status)}
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Client</p>
+                    <p className="text-foreground font-medium">{selectedQuestion.client_email || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Subject</p>
+                    <p className="text-foreground font-medium">{selectedQuestion.subject || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Created</p>
+                    <p className="text-foreground font-medium">
+                      {new Date(selectedQuestion.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Expert</p>
+                    <p className="text-foreground font-medium">{selectedQuestion.expert_id || 'Unassigned'}</p>
+                  </div>
+                </div>
+
+                {selectedQuestion.content && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Content Preview</p>
+                    <div className="p-4 rounded-lg bg-background/50 border border-border/30">
+                      <p className="text-sm text-foreground line-clamp-3">
+                        {typeof selectedQuestion.content === 'string' 
+                          ? selectedQuestion.content 
+                          : JSON.stringify(selectedQuestion.content)}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Reassign Tab */}
+        <TabsContent value="reassign" className="space-y-6">
+          <Card className="glass border-border/50 p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Reassign Question to Expert</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Question ID
+                </label>
+                <Input
+                  placeholder="Enter question ID..."
+                  value={questionId}
+                  onChange={(e) => setQuestionId(e.target.value)}
+                  className="bg-background/50 border-border/50"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Select Expert
+                </label>
+                <select
+                  value={reassignExpertId}
+                  onChange={(e) => setReassignExpertId(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground"
                 >
-                  <Search className="w-5 h-5" />
-                </button>
+                  <option value="">Select an expert...</option>
+                  {experts.map((expert) => (
+                    <option key={expert.user_id} value={expert.user_id}>
+                      {expert.email} ({expert.first_name} {expert.last_name})
+                    </option>
+                  ))}
+                </select>
               </div>
-            </div>
-
-            {selectedQuestion && (
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-gray-900">Question Details</h3>
-                    <p className="text-xs text-gray-500">ID: {selectedQuestion.question_id}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    selectedQuestion.status === 'submitted' ? 'bg-yellow-100 text-yellow-800' :
-                    selectedQuestion.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                    selectedQuestion.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {selectedQuestion.status}
-                  </span>
-                </div>
-
-                <div className="space-y-2 text-sm mb-4">
-                  <p><span className="font-medium">Subject:</span> {selectedQuestion.subject}</p>
-                  <p><span className="font-medium">Type:</span> {selectedQuestion.type}</p>
-                  <p><span className="font-medium">Created:</span> {new Date(selectedQuestion.created_at).toLocaleString()}</p>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Reassign to Expert
-                    </label>
-                    <div className="flex gap-2">
-                      <select
-                        value={reassignExpertId}
-                        onChange={(e) => setReassignExpertId(e.target.value)}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                      >
-                        <option value="">Select Expert</option>
-                        {experts.map((expert) => (
-                          <option key={expert.user_id} value={expert.user_id}>
-                            {expert.first_name} {expert.last_name} ({expert.email})
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={reassignReason}
-                        onChange={(e) => setReassignReason(e.target.value)}
-                        placeholder="Reason for reassignment"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                      />
-                      <button
-                        onClick={performReassign}
-                        disabled={!reassignExpertId || !reassignReason}
-                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50"
-                      >
-                        Reassign
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Approve Answer
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={approveReason}
-                        onChange={(e) => setApproveReason(e.target.value)}
-                        placeholder="Reason for approval"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg"
-                      />
-                      <button
-                        onClick={performApprove}
-                        disabled={!approveReason}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
-                      >
-                        Approve
-                      </button>
-                    </div>
-                  </div>
-                </div>
+              <div>
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Reason for Reassignment
+                </label>
+                <Textarea
+                  placeholder="Explain why this question is being reassigned..."
+                  value={reassignReason}
+                  onChange={(e) => setReassignReason(e.target.value)}
+                  className="bg-background/50 border-border/50 min-h-[100px]"
+                />
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Data Export Section */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900">Data Export</h2>
-            <p className="mt-1 text-sm text-gray-500">Export system data for analysis</p>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <select
-                value={exportDataType}
-                onChange={(e) => setExportDataType(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg"
+              <Button 
+                onClick={handleReassign} 
+                disabled={loading || !questionId || !reassignExpertId || !reassignReason}
+                className="w-full"
               >
-                <option value="questions">Questions</option>
-                <option value="ratings">Ratings</option>
-                <option value="audit_logs">Audit Logs</option>
-              </select>
-              
-              <input
-                type="number"
-                value={exportDays}
-                onChange={(e) => setExportDays(Number(e.target.value))}
-                min="1"
-                max="365"
-                className="w-24 px-4 py-2 border border-gray-300 rounded-lg"
-              />
-              
-              <button
-                onClick={exportData}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export Data
-              </button>
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Reassign Question
+              </Button>
             </div>
+          </Card>
+        </TabsContent>
+
+        {/* Override Actions Tab */}
+        <TabsContent value="override" className="space-y-6">
+          <Card className="glass border-border/50 p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4">Override Actions</h3>
+            <p className="text-sm text-muted-foreground mb-6">
+              Use these actions to override normal workflow processes. Use with caution.
+            </p>
             
-            {exportResult && (
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
-                  Export completed: {exportResult.count} records exported
-                </p>
-                <button
-                  onClick={downloadExport}
-                  className="mt-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm"
-                >
-                  Download JSON
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Expert Performance */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Expert Performance
-            </h2>
-          </div>
-          <div className="p-6">
-            {expertPerformance.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expert</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Rating</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Ratings</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Approval Rate</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {expertPerformance.map((expert) => (
-                      <tr key={expert.expert_id}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {expert.expert_id}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {expert.avg_rating?.toFixed(2) || '0.00'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {expert.total_ratings || 0}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {expert.approval_rate?.toFixed(1) || '0.0'}%
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-center text-gray-500 py-8">No expert performance data available</p>
-            )}
-          </div>
-        </div>
-
-        {/* System Health */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Activity className="w-5 h-5" />
-              System Health
-            </h2>
-          </div>
-          <div className="p-6">
-            {systemHealth && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <p className="text-sm font-medium text-blue-600">Uptime</p>
-                  <p className="text-2xl font-bold text-blue-900">
-                    {systemHealth.uptime_percentage?.toFixed(1) || '0.0'}%
-                  </p>
-                </div>
-                <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-sm font-medium text-green-600">Avg Processing</p>
-                  <p className="text-2xl font-bold text-green-900">
-                    {systemHealth.processing_times?.avg_seconds?.toFixed(1) || '0.0'}s
-                  </p>
-                </div>
-                <div className="p-4 bg-yellow-50 rounded-lg">
-                  <p className="text-sm font-medium text-yellow-600">Error Rate</p>
-                  <p className="text-2xl font-bold text-yellow-900">
-                    {systemHealth.error_rate?.toFixed(2) || '0.00'}%
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-lg">
-                  <p className="text-sm font-medium text-purple-600">Queue Health</p>
-                  <p className="text-2xl font-bold text-purple-900">
-                    {systemHealth.queue_health ? 'Healthy' : 'N/A'}
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Churn Risk */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5" />
-              Churn Risk Analysis
-            </h2>
-          </div>
-          <div className="p-6">
-            {churnRisk.length > 0 ? (
-              <div className="space-y-3">
-                {churnRisk.map((client) => (
-                  <div key={client.client_id} className="p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Client ID: {client.client_id}</p>
-                        <p className="text-xs text-gray-500">Risk Type: {client.risk_type}</p>
-                        <p className="text-xs text-gray-500">Risk Score: {(client.risk_score * 100).toFixed(1)}%</p>
-                      </div>
-                      <button className="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                        View Details
-                      </button>
+            <div className="space-y-4">
+              <div className="p-4 rounded-lg bg-warning/10 border border-warning/30">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-warning mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-foreground mb-1">Force Deliver</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Immediately deliver a question to the client, bypassing all checks.
+                    </p>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Question ID..."
+                        value={questionId}
+                        onChange={(e) => setQuestionId(e.target.value)}
+                        className="flex-1 bg-background/50 border-border/50"
+                      />
+                      <Button 
+                        onClick={handleForceDeliver}
+                        disabled={loading || !questionId}
+                        variant="outline"
+                      >
+                        {loading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4" />
+                        )}
+                      </Button>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
-            ) : (
-              <p className="text-center text-gray-500 py-8">No clients at risk identified</p>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }
-

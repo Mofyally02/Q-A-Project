@@ -1,27 +1,27 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: postgres:15-alpine
+    container_name: qa_postgres
     environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
       POSTGRES_DB: qa_system
-      POSTGRES_USER: qa_user
-      POSTGRES_PASSWORD: qa_password
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U qa_user -d qa_system"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  # Redis Cache
   redis:
     image: redis:7-alpine
+    container_name: qa_redis
     ports:
       - "6379:6379"
     volumes:
@@ -31,16 +31,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
-  # RabbitMQ Message Queue
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
+    container_name: qa_rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: qa_user
-      RABBITMQ_DEFAULT_PASS: qa_password
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
     ports:
-      - "5672:5672"
-      - "15672:15672"  # Management UI
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     healthcheck:
@@ -48,43 +49,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Main Application
-  app:
-    build: .
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql://qa_user:qa_password@postgres:5432/qa_system
-      - AUTH_DATABASE_URL=postgresql://qa_user:qa_password@postgres:5432/qa_auth
-      - REDIS_URL=redis://redis:6379
-      - RABBITMQ_HOST=rabbitmq
-      - RABBITMQ_PORT=5672
-      - RABBITMQ_USER=qa_user
-      - RABBITMQ_PASSWORD=qa_password
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-    volumes:
-      - ./app:/app/app
-      - ./logs:/app/logs
-    restart: unless-stopped
-
-  # Nginx Reverse Proxy (Optional)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - app
     restart: unless-stopped
 
 volumes:
