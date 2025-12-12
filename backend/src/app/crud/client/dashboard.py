@@ -13,24 +13,53 @@ async def get_dashboard_data(
     user_id: UUID
 ) -> Dict[str, Any]:
     """Get client dashboard data"""
-    # Get user credits
-    user = await db.fetchrow("""
-        SELECT credits, created_at
-        FROM users
-        WHERE id = $1
+    # Get user credits from clients table
+    # If client record doesn't exist, create it with default values
+    client_data = await db.fetchrow("""
+        SELECT 
+            credits_remaining,
+            credits_total,
+            created_at
+        FROM clients
+        WHERE user_id = $1
     """, user_id)
     
-    if not user:
-        raise ValueError("User not found")
+    if not client_data:
+        # Create client record if it doesn't exist
+        try:
+            await db.execute("""
+                INSERT INTO clients (user_id, credits_remaining, credits_total, subscription_type, subscription_status)
+                VALUES ($1, 100, 100, 'free', 'active')
+                ON CONFLICT (user_id) DO NOTHING
+            """, user_id)
+            
+            # Fetch the newly created record
+            client_data = await db.fetchrow("""
+                SELECT 
+                    credits_remaining,
+                    credits_total,
+                    created_at
+                FROM clients
+                WHERE user_id = $1
+            """, user_id)
+        except Exception as e:
+            # If insert fails, use default values
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to create client record for user {user_id}: {e}")
+            client_data = None
     
-    credits_balance = user["credits"] or 0
-    
-    # Get credits used
-    credits_used = await db.fetchval("""
-        SELECT COALESCE(SUM(credits_used), 0)
-        FROM questions
-        WHERE client_id = $1
-    """, user_id) or 0
+    # Use client data or defaults
+    if client_data:
+        credits_balance = client_data["credits_remaining"] or 0
+        credits_total = client_data["credits_total"] or 0
+        # Calculate credits used: total - remaining
+        credits_used = max(0, credits_total - credits_balance)
+    else:
+        # Fallback to default values if client record still doesn't exist
+        credits_balance = 100
+        credits_total = 100
+        credits_used = 0
     
     # Get question statistics
     total_questions = await db.fetchval("""
@@ -42,7 +71,7 @@ async def get_dashboard_data(
     pending_questions = await db.fetchval("""
         SELECT COUNT(*)
         FROM questions
-        WHERE client_id = $1 AND status IN ('pending', 'processing', 'reviewed')
+        WHERE client_id = $1 AND status IN ('submitted', 'processing', 'ai_generated', 'humanized', 'expert_review')
     """, user_id) or 0
     
     answered_questions = await db.fetchval("""
@@ -59,19 +88,17 @@ async def get_dashboard_data(
     """, user_id)
     
     # Get recent answers (last 5)
+    # Note: Expert info removed since users table is in different database (qa_auth)
     recent_answers = await db.fetch("""
         SELECT 
-            q.id as question_id,
-            q.question_text,
-            a.answer_text,
-            e.first_name as expert_first_name,
-            e.last_name as expert_last_name,
+            q.question_id,
+            COALESCE(q.subject, 'Question') as question_text,
+            COALESCE(a.humanized_response->>'text', a.ai_response->>'text', 'Answer') as answer_text,
             q.delivered_at,
             r.rating
         FROM questions q
-        JOIN answers a ON q.answer_id = a.id
-        LEFT JOIN users e ON q.expert_id = e.id
-        LEFT JOIN ratings r ON q.id = r.question_id AND r.client_id = $1
+        JOIN answers a ON q.question_id = a.question_id
+        LEFT JOIN ratings r ON q.question_id = r.question_id AND r.client_id = $1
         WHERE q.client_id = $1 AND q.status = 'delivered'
         ORDER BY q.delivered_at DESC
         LIMIT 5
@@ -79,15 +106,11 @@ async def get_dashboard_data(
     
     recent_answers_list = []
     for row in recent_answers:
-        expert_name = None
-        if row["expert_first_name"] or row["expert_last_name"]:
-            expert_name = f"{row['expert_first_name'] or ''} {row['expert_last_name'] or ''}".strip()
-        
         recent_answers_list.append({
             "question_id": row["question_id"],
             "question_text": row["question_text"][:100],  # Truncate
             "answer_text": row["answer_text"][:200],  # Truncate
-            "expert_name": expert_name,
+            "expert_name": "Expert",  # Placeholder - expert info requires cross-database query
             "delivered_at": row["delivered_at"],
             "rating": row["rating"]
         })
@@ -95,12 +118,12 @@ async def get_dashboard_data(
     # Get live questions (pending/processing)
     live_questions = await db.fetch("""
         SELECT 
-            id as question_id,
-            question_text,
+            question_id,
+            COALESCE(subject, content->>'text', 'Question') as question_text,
             status,
             created_at
         FROM questions
-        WHERE client_id = $1 AND status IN ('pending', 'processing', 'reviewed')
+        WHERE client_id = $1 AND status IN ('submitted', 'processing', 'ai_generated', 'humanized', 'expert_review')
         ORDER BY created_at DESC
         LIMIT 10
     """, user_id)
@@ -146,13 +169,34 @@ async def get_dashboard_data(
             "unlocked_at": datetime.utcnow()
         })
     
-    if avg_rating and avg_rating >= 4.5:
-        achievements.append({
-            "id": "high_rating",
-            "title": "Satisfied Customer",
-            "description": "Maintained high ratings",
-            "unlocked_at": datetime.utcnow()
-        })
+    # Get actual achievements from database
+    from app.crud.client import achievements as achievements_crud
+    
+    # Get unlocked achievements
+    unlocked_achievements = await achievements_crud.get_user_achievements(db, user_id)
+    
+    # Get streaks
+    streaks = await achievements_crud.get_user_streaks(db, user_id)
+    
+    # Get current streak for achievement checking
+    current_streak = 0
+    for streak in streaks:
+        if streak.get("streak_type") == "daily_question":
+            current_streak = streak.get("current_streak", 0)
+            break
+    
+    # Sync and check for new achievements
+    newly_unlocked = await achievements_crud.check_and_unlock_achievements(
+        db,
+        user_id,
+        total_questions,
+        float(avg_rating) if avg_rating else None,
+        current_streak
+    )
+    
+    # Refresh achievements list if new ones were unlocked
+    if newly_unlocked:
+        unlocked_achievements = await achievements_crud.get_user_achievements(db, user_id)
     
     return {
         "stats": {
@@ -167,6 +211,8 @@ async def get_dashboard_data(
         "recent_answers": recent_answers_list,
         "live_questions": live_questions_list,
         "recommended_actions": recommended_actions,
-        "achievements": achievements
+        "achievements": [dict(a) for a in unlocked_achievements],
+        "streaks": [dict(s) for s in streaks],
+        "newly_unlocked": [dict(a) for a in newly_unlocked]
     }
 

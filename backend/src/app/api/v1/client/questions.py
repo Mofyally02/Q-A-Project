@@ -43,6 +43,23 @@ async def submit_question(
         result = await question_service.submit_question(
             db, current_user.id, question_text, subject, priority, image_urls
         )
+        
+        # Record question activity for achievements and streaks
+        try:
+            from app.services.client.achievements_service import AchievementsService
+            from datetime import date
+            achievements_service = AchievementsService()
+            await achievements_service.record_question_activity(
+                db,
+                current_user.id,
+                date.today()
+            )
+        except Exception as e:
+            # Don't fail question submission if achievements tracking fails
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to record question activity for achievements: {e}")
+        
         return QuestionSubmissionResponse(**result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

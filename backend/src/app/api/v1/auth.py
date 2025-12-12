@@ -188,7 +188,8 @@ async def register(
 @router.post("/login", response_model=LoginResponse)
 async def login(
     request: LoginRequest,
-    db: asyncpg.Connection = Depends(get_auth_db)
+    auth_db: asyncpg.Connection = Depends(get_auth_db),
+    main_db: asyncpg.Connection = Depends(get_db)
 ):
     """
     Login endpoint
@@ -196,7 +197,7 @@ async def login(
     """
     try:
         # Find user by email
-        user = await db.fetchrow("""
+        user = await auth_db.fetchrow("""
             SELECT user_id, email, password_hash, first_name, last_name, role, is_active, email_verified as is_verified, is_banned
             FROM users
             WHERE email = $1
@@ -230,7 +231,7 @@ async def login(
             )
         
         # Update last login
-        await db.execute("""
+        await auth_db.execute("""
             UPDATE users
             SET last_login = NOW(),
                 updated_at = NOW()
@@ -243,6 +244,21 @@ async def login(
             role=user['role'],
             email=user['email']
         )
+        
+        # Record login activity for achievements (clients only)
+        if user['role'] == 'client':
+            try:
+                from app.services.client.achievements_service import AchievementsService
+                from datetime import date
+                achievements_service = AchievementsService()
+                await achievements_service.record_login_activity(
+                    main_db,
+                    user['user_id'],
+                    date.today()
+                )
+            except Exception as e:
+                # Don't fail login if achievements tracking fails
+                logger.warning(f"Failed to record login activity for achievements: {e}")
         
         return LoginResponse(
             success=True,

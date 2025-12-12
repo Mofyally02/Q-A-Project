@@ -4,7 +4,7 @@ All client endpoints with proper permissions
 """
 
 from fastapi import APIRouter
-from app.api.v1.client import dashboard, questions, wallet, notifications, settings, history, chat
+from app.api.v1.client import dashboard, questions, wallet, notifications, settings, history, chat, achievements
 
 # Create client router
 client_router = APIRouter(prefix="/client", tags=["client"])
@@ -15,6 +15,7 @@ client_router.include_router(questions.router, prefix="/questions", tags=["clien
 client_router.include_router(wallet.router, prefix="/wallet", tags=["client-wallet"])
 client_router.include_router(notifications.router, prefix="/notifications", tags=["client-notifications"])
 client_router.include_router(settings.router, prefix="/settings", tags=["client-settings"])
+client_router.include_router(achievements.router, prefix="/achievements", tags=["client-achievements"])
 
 # Add alias routes for frontend compatibility
 # Note: history router already has /history path, so we include it without prefix

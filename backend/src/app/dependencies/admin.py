@@ -76,7 +76,13 @@ async def get_current_user(
     # Create a simple object with user data
     class UserObj:
         def __init__(self, data):
-            for key, value in data.items():
+            # Map database columns to User model attributes
+            # Map user_id to id for compatibility with User model
+            user_dict = dict(data)
+            if 'user_id' in user_dict:
+                user_dict['id'] = user_dict['user_id']
+            
+            for key, value in user_dict.items():
                 setattr(self, key, value)
         
         def is_super_admin(self) -> bool:
@@ -87,7 +93,7 @@ async def get_current_user(
             """Check if user is admin or super admin"""
             return self.role in UserRole.admin_roles() or self.email == SUPER_ADMIN_EMAIL
     
-    user = UserObj(dict(user_row))
+    user = UserObj(user_row)
     
     if not user.is_active:
         raise HTTPException(

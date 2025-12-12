@@ -115,6 +115,10 @@ if not settings.debug:
 # Include API router
 app.include_router(api_router, prefix="/api/v1")
 
+# Include WebSocket routes at root level (not under /api/v1)
+from app.api.v1 import websocket
+app.include_router(websocket.router, tags=["websocket"])
+
 
 @app.get("/")
 async def root():

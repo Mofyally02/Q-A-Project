@@ -491,5 +491,67 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- ACHIEVEMENTS & STREAKS TABLES
+-- ============================================
+
+-- 20. Achievements Table
+CREATE TABLE IF NOT EXISTS achievements (
+    achievement_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    achievement_type VARCHAR(50) NOT NULL,
+    achievement_key VARCHAR(100) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    icon VARCHAR(50),
+    progress INTEGER DEFAULT 1,
+    target INTEGER DEFAULT 1,
+    unlocked_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT unique_client_achievement UNIQUE (client_id, achievement_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_achievements_client_id ON achievements(client_id);
+CREATE INDEX IF NOT EXISTS idx_achievements_type ON achievements(achievement_type);
+CREATE INDEX IF NOT EXISTS idx_achievements_unlocked_at ON achievements(unlocked_at) WHERE unlocked_at IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_achievements_key ON achievements(achievement_key);
+
+-- 21. Achievement Progress Table
+CREATE TABLE IF NOT EXISTS achievement_progress (
+    progress_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    achievement_key VARCHAR(100) NOT NULL,
+    current_value INTEGER NOT NULL DEFAULT 0,
+    target_value INTEGER NOT NULL DEFAULT 1,
+    progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0.00,
+    metadata JSONB,
+    last_updated TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT unique_client_progress UNIQUE (client_id, achievement_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_achievement_progress_client_id ON achievement_progress(client_id);
+CREATE INDEX IF NOT EXISTS idx_achievement_progress_key ON achievement_progress(achievement_key);
+
+-- 22. Streaks Table
+CREATE TABLE IF NOT EXISTS streaks (
+    streak_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    client_id UUID NOT NULL REFERENCES clients(client_id) ON DELETE CASCADE,
+    streak_type VARCHAR(50) NOT NULL,
+    current_streak INTEGER NOT NULL DEFAULT 0,
+    longest_streak INTEGER NOT NULL DEFAULT 0,
+    last_activity_date DATE NOT NULL,
+    streak_started_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    CONSTRAINT unique_client_streak_type UNIQUE (client_id, streak_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_streaks_client_id ON streaks(client_id);
+CREATE INDEX IF NOT EXISTS idx_streaks_type ON streaks(streak_type);
+CREATE INDEX IF NOT EXISTS idx_streaks_last_activity ON streaks(last_activity_date);
+
+-- ============================================
 -- END OF SCHEMA
 -- ============================================
