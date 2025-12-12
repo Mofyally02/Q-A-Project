@@ -80,43 +80,50 @@ export function ClientHeader() {
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-yellow-500 rounded-full border-2 border-background"></span>
           </button>
 
-          {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-semibold text-xs">
-                  {userName.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-medium text-foreground hidden sm:block">
-                  {userName}
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem>
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {!mounted ? (
-                  <>
-                    <Moon className="w-4 h-4 mr-2" />
-                    Toggle Theme
-                  </>
-                ) : theme === 'dark' ? (
-                  <>
-                    <Sun className="w-4 h-4 mr-2" />
-                    Light Mode
-                  </>
-                ) : (
-                  <>
-                    <Moon className="w-4 h-4 mr-2" />
-                    Dark Mode
-                  </>
-                )}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* User Menu - Only render after mount to prevent hydration mismatch */}
+          {mounted && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-semibold text-xs">
+                    {userName.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-foreground hidden sm:block">
+                    {userName}
+                  </span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem>
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                  {theme === 'dark' ? (
+                    <>
+                      <Sun className="w-4 h-4 mr-2" />
+                      Light Mode
+                    </>
+                  ) : (
+                    <>
+                      <Moon className="w-4 h-4 mr-2" />
+                      Dark Mode
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          {!mounted && (
+            <button className="flex items-center gap-2 p-2 rounded-lg hover:bg-accent/50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-semibold text-xs">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium text-foreground hidden sm:block">
+                {userName}
+              </span>
+            </button>
+          )}
         </div>
       </div>
     </header>

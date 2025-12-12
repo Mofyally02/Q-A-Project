@@ -15,7 +15,7 @@ import { cn } from '@/app/client/lib/utils'
 
 export default function ClientHistoryPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [questions, setQuestions] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -27,13 +27,16 @@ export default function ClientHistoryPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
     loadHistory()
-  }, [user, isAuthenticated, router, page, statusFilter])
+  }, [user, isAuthenticated, isHydrated, router, page, statusFilter])
 
   const loadHistory = async () => {
     try {

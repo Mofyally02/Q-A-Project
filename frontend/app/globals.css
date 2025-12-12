@@ -1,3 +1,4 @@
+/* postcss-env */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -48,8 +49,13 @@
     --input: 220 10% 95%;
     --ring: 35 95% 55%;
 
-    --radius: 0.5rem; /* Modern, softly rounded corners */
-  
+    --radius: 0.75rem; /* Slight curved corner indentations */
+    
+    /* Glassmorphism */
+    --glass-bg: rgba(255, 255, 255, 0.8);
+    --glass-border: rgba(200, 180, 150, 0.3);
+  }
+
   /* Animations */
   @keyframes pulse-glow {
     0%, 100% {
@@ -67,11 +73,6 @@
     50% {
       transform: translateY(-4px);
     }
-  }
-    
-    /* Glassmorphism */
-    --glass-bg: rgba(255, 255, 255, 0.8);
-    --glass-border: rgba(200, 180, 150, 0.3);
   }
 
   /* Live Chat Animation */
@@ -359,6 +360,10 @@
 
 .animate-scale-in {
   animation: scaleIn 0.2s ease-out;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
 }
 
 .animate-shimmer {

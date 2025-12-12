@@ -27,7 +27,7 @@ interface Ticket {
 
 export default function ClientTicketsPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [tickets, setTickets] = useState<Ticket[]>([])
@@ -43,13 +43,16 @@ export default function ClientTicketsPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
     loadTickets()
-  }, [user, isAuthenticated, router])
+  }, [user, isAuthenticated, isHydrated, router])
 
   const loadTickets = async () => {
     try {

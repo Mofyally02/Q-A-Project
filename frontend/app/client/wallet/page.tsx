@@ -14,7 +14,7 @@ import { Card } from '@/components/ui/card'
 
 export default function ClientWalletPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [walletData, setWalletData] = useState<any>(null)
   const [topUpAmount, setTopUpAmount] = useState<number>(10)
@@ -24,13 +24,16 @@ export default function ClientWalletPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
     loadWallet()
-  }, [user, isAuthenticated, router])
+  }, [user, isAuthenticated, isHydrated, router])
 
   const loadWallet = async () => {
     try {

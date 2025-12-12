@@ -51,7 +51,7 @@ const getGreeting = () => {
 
 export default function ClientDashboardPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const {
     liveQuestions,
     recentAnswers,
@@ -65,15 +65,10 @@ export default function ClientDashboardPage() {
   
   const [loading, setLoading] = useState(true)
   const [dashboardData, setDashboardData] = useState<any>(null)
-  const [hydrated, setHydrated] = useState(false)
 
   useEffect(() => {
-    setHydrated(true)
-    hydrateApiAuth()
-  }, [])
-
-  useEffect(() => {
-    if (!hydrated) return
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
 
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
@@ -81,9 +76,40 @@ export default function ClientDashboardPage() {
       return
     }
 
+    // Verify token exists before making API call
+    const token = useAuthStore.getState().token
+    if (!token) {
+      // Try to get from localStorage as fallback
+      try {
+        const raw = localStorage.getItem('auth-storage')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const storedToken = parsed?.state?.token ?? null
+          if (!storedToken) {
+            console.warn('[Dashboard] No token found, redirecting to login')
+            router.push('/auth')
+            toast.error('Please log in to continue.')
+            return
+          }
+        } else {
+          console.warn('[Dashboard] No auth storage found, redirecting to login')
+          router.push('/auth')
+          toast.error('Please log in to continue.')
+          return
+        }
+      } catch (error) {
+        console.error('[Dashboard] Failed to check token:', error)
+        router.push('/auth')
+        return
+      }
+    }
+
     const fetchDashboardData = async () => {
       try {
         setLoading(true)
+        // Ensure token is hydrated in axios headers before making request
+        hydrateApiAuth()
+        
         const response: any = await apiHelpers.getClientDashboard()
         
         // Handle different response structures
@@ -155,10 +181,22 @@ export default function ClientDashboardPage() {
         } else if (error?.message) {
           // Standard error message
           errorMessage = error.message
-          errorDetails = {
-            message: error.message,
-            name: error.name,
-            stack: error.stack
+          
+          // Check for network errors specifically
+          if (error.message === 'Network Error' || error.code === 'ERR_NETWORK') {
+            errorMessage = 'Unable to connect to the server. Please ensure the backend is running on http://localhost:8000'
+            errorDetails = {
+              message: error.message,
+              code: error.code,
+              url: error.config?.baseURL + error.config?.url,
+              suggestion: 'Make sure the backend server is running and accessible'
+            }
+          } else {
+            errorDetails = {
+              message: error.message,
+              name: error.name,
+              stack: error.stack
+            }
           }
         } else {
           // Unknown error - try to extract what we can
@@ -195,15 +233,25 @@ export default function ClientDashboardPage() {
       }
     }
     fetchDashboardData()
-  }, [hydrated, user, isAuthenticated, router])
+  }, [isHydrated, user, isAuthenticated, router])
 
   // WebSocket connection for real-time updates
   // Only connect if user is authenticated
-  const wsUrl = isAuthenticated && user
+  const token = useAuthStore.getState().token
+  const wsUrl = isAuthenticated && user && token
     ? (process.env.NEXT_PUBLIC_WS_URL 
-        ? `${process.env.NEXT_PUBLIC_WS_URL.replace(/\/$/, '')}/ws/client`
+        ? (() => {
+            // Remove trailing slash and ensure we don't double up /ws
+            let baseUrl = process.env.NEXT_PUBLIC_WS_URL.replace(/\/$/, '')
+            // If baseUrl already ends with /ws, don't add it again
+            if (baseUrl.endsWith('/ws')) {
+              return `${baseUrl}/client?token=${encodeURIComponent(token)}`
+            }
+            // Otherwise, append /ws/client
+            return `${baseUrl}/ws/client?token=${encodeURIComponent(token)}`
+          })()
         : typeof window !== 'undefined'
-        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000/ws/client`
+        ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.hostname}:8000/ws/client?token=${encodeURIComponent(token)}`
         : undefined)
     : undefined
   useWebSocket(wsUrl)

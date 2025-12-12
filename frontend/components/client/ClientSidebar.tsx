@@ -42,7 +42,8 @@ export function ClientSidebar() {
   }
 
   const handleLinkClick = () => {
-    if (window.innerWidth < 1024) {
+    // Safe check for window width (client-side only)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsMobileOpen(false)
     }
   }
@@ -122,30 +123,31 @@ export function ClientSidebar() {
           onClick={handleLinkClick}
           className={cn(
             "flex items-center gap-3 px-4 py-3 rounded-lg bg-primary/10 text-primary mb-4 transition-all duration-200 group relative",
+            "cursor-pointer z-10 active:scale-95",
             isExpanded ? "justify-start" : "justify-center",
             "hover:bg-primary/20",
-            "animate-pulse hover:animate-none",
             "ring-2 ring-primary/30 hover:ring-primary/50",
-            "shadow-lg hover:shadow-xl"
+            "shadow-lg hover:shadow-xl",
+            "animate-pulse group-hover:animate-none"
           )}
           title={!isExpanded ? "Create Ticket to Chat with Admin" : undefined}
         >
-          <div className="relative flex-shrink-0">
+          <div className="relative flex-shrink-0 pointer-events-none">
             <MessageSquare size={20} className="flex-shrink-0 animate-bounce-slow" />
             {/* Animated notification dot */}
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-background animate-ping"></span>
-            <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-background"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-background animate-ping pointer-events-none"></span>
+            <span className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-500 rounded-full border-2 border-background pointer-events-none"></span>
           </div>
           {isExpanded && (
             <div className="flex-1">
-              <span className="text-sm font-medium block">💬 Live Chat</span>
+              <span className="text-sm font-medium block">Live Chat</span>
               <span className="text-xs text-primary/70">Create a ticket</span>
             </div>
           )}
           {/* Tooltip for collapsed state */}
           {!isExpanded && (
             <div className="absolute left-full ml-3 px-3 py-2 bg-popover text-popover-foreground text-xs font-medium rounded-md opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-50 shadow-xl border border-border">
-              <div className="font-semibold mb-1">💬 Live Chat</div>
+              <div className="font-semibold mb-1"> Live Chat</div>
               <div className="text-xs opacity-80">Create ticket to start</div>
               <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-popover"></div>
             </div>
@@ -201,6 +203,7 @@ export function ClientSidebar() {
           isExpanded ? "w-64" : "w-20",
           isExpanded ? "p-6" : "p-4"
         )}
+        data-expanded={isExpanded}
       >
         {/* Toggle Button */}
         <button

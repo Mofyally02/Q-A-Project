@@ -42,7 +42,8 @@ export function AdminSidebar() {
   }
 
   const handleLinkClick = () => {
-    if (window.innerWidth < 1024) {
+    // Safe check for window width (client-side only)
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
       setIsMobileOpen(false)
     }
   }

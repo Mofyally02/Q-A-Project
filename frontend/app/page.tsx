@@ -7,9 +7,16 @@ import { UserRole } from '@/types'
 
 export default function Home() {
   const router = useRouter()
-  const { isAuthenticated, user, userRole } = useAuthStore() // Accessing user and userRole from store
+  // Use safe selectors to prevent undefined access
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
+  const user = useAuthStore((state) => state.user)
+  const userRole = useAuthStore((state) => state.user?.role ?? null) // Safe access with fallback
+  const isHydrated = useAuthStore((state) => state.isHydrated)
 
   useEffect(() => {
+    // Wait for auth store to hydrate before redirecting
+    if (!isHydrated) return
+    
     // Check authentication status
     if (isAuthenticated) {
       if (!userRole) {
@@ -41,7 +48,7 @@ export default function Home() {
     } else {
       router.push('/auth') // Redirect to auth page if not authenticated
     }
-  }, [isAuthenticated, userRole, router])
+  }, [isAuthenticated, userRole, isHydrated, router])
 
   // Optionally, render a loading spinner or null while redirecting
   return (

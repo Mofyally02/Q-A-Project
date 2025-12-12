@@ -80,7 +80,7 @@ type RecentActivity = {
 
 const AdminDashboardPage = () => {
   const router = useRouter()
-  const { user } = useAuthStore()
+  const { user, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [overview, setOverview] = useState<{
     stats?: DashboardStats
@@ -94,6 +94,9 @@ const AdminDashboardPage = () => {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!user) return
     const isAdmin = user.role === UserRole.ADMIN || 
                    user.role === UserRole.SUPER_ADMIN || 
@@ -105,7 +108,7 @@ const AdminDashboardPage = () => {
       return
     }
     loadDashboard()
-  }, [user, router])
+  }, [user, isHydrated, router])
 
   const loadDashboard = async () => {
     try {
@@ -113,9 +116,31 @@ const AdminDashboardPage = () => {
       const response = await apiHelpers.getAdminDashboardOverview()
       if (response.data?.success) {
         setOverview(response.data.data)
+      } else {
+        console.error('Dashboard API response error:', response.data)
+        toast.error(response.data?.message || 'Failed to load dashboard')
       }
     } catch (error: any) {
-      toast.error(error?.response?.data?.detail || 'Failed to load dashboard')
+      console.error('Dashboard load error:', error)
+      const errorMessage = error?.response?.data?.detail || 
+                          error?.response?.data?.message || 
+                          error?.message || 
+                          'Failed to load dashboard'
+      toast.error(errorMessage)
+      // Set empty overview to prevent render errors
+      setOverview({
+        stats: {
+          total_questions: 0,
+          pending_reviews: 0,
+          average_rating: 0,
+          active_users: 0,
+          total_experts: 0,
+          total_clients: 0,
+          system_health: 100
+        },
+        charts: {},
+        recent_activity: []
+      })
     } finally {
       setLoading(false)
     }

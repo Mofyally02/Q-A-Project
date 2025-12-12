@@ -3,8 +3,19 @@
 import { ThemeProvider } from './components/ThemeProvider'
 import { Toaster } from 'react-hot-toast'
 import dynamic from 'next/dynamic'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, createContext, useContext } from 'react'
 import { cn } from '@/lib/utils'
+
+// Context for sidebar state
+const SidebarContext = createContext<{
+  isExpanded: boolean
+  setIsExpanded: (expanded: boolean) => void
+}>({
+  isExpanded: false,
+  setIsExpanded: () => {}
+})
+
+export const useSidebar = () => useContext(SidebarContext)
 
 // Dynamically import heavy components to reduce initial bundle
 const ClientSidebar = dynamic(() => import('@/components/client/ClientSidebar').then(mod => ({ default: mod.ClientSidebar })), {
@@ -20,89 +31,99 @@ function ClientAppLayout({ children }: { children: React.ReactNode }) {
   const [sidebarExpanded, setSidebarExpanded] = useState(false)
 
   useEffect(() => {
-    let observer: MutationObserver | null = null
     let sidebar: Element | null = null
-    let cleanup: (() => void) | null = null
+    let observer: MutationObserver | null = null
+    let handleMouseEnter: (() => void) | null = null
+    let handleMouseLeave: (() => void) | null = null
     
-    // Check if sidebar is expanded on desktop
-    const checkSidebar = () => {
+    const updateSidebarState = () => {
       if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
-        // On desktop, sidebar can be expanded via hover
-        // Look for the desktop sidebar specifically (not mobile)
         sidebar = document.querySelector('aside.hidden.lg\\:flex')
         if (sidebar) {
-          // Clean up previous observer if exists
-          if (observer) {
-            observer.disconnect()
-          }
-          
-          observer = new MutationObserver(() => {
-            const isExpanded = sidebar?.classList.contains('w-64') || false
-            setSidebarExpanded(isExpanded)
-          })
-          observer.observe(sidebar, {
-            attributes: true,
-            attributeFilter: ['class'],
-            attributeOldValue: false
-          })
-          // Initial check
-          setSidebarExpanded(sidebar.classList.contains('w-64'))
-          
-          // Also listen for mouse events on the sidebar for immediate response
-          const handleMouseEnter = () => setSidebarExpanded(true)
-          const handleMouseLeave = () => setSidebarExpanded(false)
-          
-          sidebar.addEventListener('mouseenter', handleMouseEnter)
-          sidebar.addEventListener('mouseleave', handleMouseLeave)
-          
-          cleanup = () => {
-            if (observer) {
-              observer.disconnect()
-            }
-            if (sidebar) {
-              sidebar.removeEventListener('mouseenter', handleMouseEnter)
-              sidebar.removeEventListener('mouseleave', handleMouseLeave)
-            }
-          }
+          // Check data-expanded attribute first, then fallback to class
+          const dataExpanded = sidebar.getAttribute('data-expanded')
+          const isExpanded = dataExpanded === 'true' || sidebar.classList.contains('w-64')
+          setSidebarExpanded(isExpanded)
         }
       } else {
         setSidebarExpanded(false)
       }
     }
     
-    // Delay to ensure DOM is ready
-    const timer = setTimeout(checkSidebar, 100)
-    window.addEventListener('resize', checkSidebar)
+    // Initial check with delay
+    const timer = setTimeout(() => {
+      sidebar = document.querySelector('aside.hidden.lg\\:flex')
+      if (sidebar) {
+        // Use MutationObserver to watch for attribute and class changes
+        observer = new MutationObserver(() => {
+          updateSidebarState()
+        })
+        
+        observer.observe(sidebar, {
+          attributes: true,
+          attributeFilter: ['data-expanded', 'class'],
+          subtree: false
+        })
+        
+        // Initial state check
+        updateSidebarState()
+        
+        // Also listen for mouse events for immediate response
+        handleMouseEnter = () => {
+          if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            setSidebarExpanded(true)
+          }
+        }
+        
+        handleMouseLeave = () => {
+          if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+            setSidebarExpanded(false)
+          }
+        }
+        
+        sidebar.addEventListener('mouseenter', handleMouseEnter)
+        sidebar.addEventListener('mouseleave', handleMouseLeave)
+      }
+    }, 100)
+    
+    // Also listen for resize
+    window.addEventListener('resize', updateSidebarState)
     
     return () => {
       clearTimeout(timer)
-      window.removeEventListener('resize', checkSidebar)
-      if (cleanup) {
-        cleanup()
+      if (observer) {
+        observer.disconnect()
       }
+      if (sidebar && handleMouseEnter && handleMouseLeave) {
+        sidebar.removeEventListener('mouseenter', handleMouseEnter)
+        sidebar.removeEventListener('mouseleave', handleMouseLeave)
+      }
+      window.removeEventListener('resize', updateSidebarState)
     }
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <ClientSidebar />
-      <main className={cn(
-        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-        // Mobile: no margin (sidebar is overlay)
-        // Desktop: Match sidebar width exactly: 256px (w-64) when expanded, 80px (w-20) when collapsed
-        sidebarExpanded ? "lg:ml-[256px]" : "lg:ml-[80px]",
-        // Add top padding on mobile for menu button
-        "pt-16 lg:pt-0"
-      )}>
-        <ClientHeader />
-        <div className="flex-1 overflow-y-auto">
-          {/* Content area - matches admin layout */}
-          <div className="p-6 lg:p-8 w-full">
-            {children}
+    <SidebarContext.Provider value={{ isExpanded: sidebarExpanded, setIsExpanded: setSidebarExpanded }}>
+      <div className="flex min-h-screen bg-background">
+        <ClientSidebar />
+        <main className={cn(
+          "flex-1 flex flex-col transition-[margin-left] duration-300 ease-in-out",
+          // Mobile: no margin (sidebar is overlay)
+          // Desktop: Match sidebar width exactly: 256px (w-64) when expanded, 80px (w-20) when collapsed
+          sidebarExpanded ? "lg:ml-64" : "lg:ml-20",
+          // Add top padding on mobile for menu button
+          "pt-16 lg:pt-0"
+        )}>
+          <ClientHeader />
+          <div className="flex-1 overflow-y-auto">
+            {/* Content area - matches admin layout */}
+            <div className="p-6 lg:p-8 w-full">
+              {children}
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    </SidebarContext.Provider>
   )
 }
 

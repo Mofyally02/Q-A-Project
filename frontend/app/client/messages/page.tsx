@@ -34,7 +34,7 @@ interface Ticket {
 
 export default function ClientMessagesPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -53,13 +53,16 @@ export default function ClientMessagesPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
     loadTicket()
-  }, [user, isAuthenticated, router])
+  }, [user, isAuthenticated, isHydrated, router])
 
   useEffect(() => {
     // Auto-scroll to bottom when new messages arrive

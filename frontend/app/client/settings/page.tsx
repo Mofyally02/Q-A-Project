@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input'
 
 export default function ClientSettingsPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [profileForm, setProfileForm] = useState({
@@ -29,13 +29,16 @@ export default function ClientSettingsPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
     loadProfile()
-  }, [user, isAuthenticated, router])
+  }, [user, isAuthenticated, isHydrated, router])
 
   const loadProfile = async () => {
     try {

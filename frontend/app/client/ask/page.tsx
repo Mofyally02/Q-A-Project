@@ -15,7 +15,7 @@ import { cn } from '@/app/client/lib/utils'
 
 export default function AskQuestionPage() {
   const router = useRouter()
-  const { user, isAuthenticated } = useAuthStore()
+  const { user, isAuthenticated, isHydrated } = useAuthStore()
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({
     subject: '',
@@ -30,12 +30,15 @@ export default function AskQuestionPage() {
   }, [])
 
   useEffect(() => {
+    // Wait for auth store to hydrate from localStorage before checking auth
+    if (!isHydrated) return
+    
     if (!isAuthenticated || !user || user.role !== UserRole.CLIENT) {
       router.push('/auth')
       toast.error('Client access only')
       return
     }
-  }, [user, isAuthenticated, router])
+  }, [user, isAuthenticated, isHydrated, router])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
